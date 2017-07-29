@@ -11,6 +11,11 @@ class Main extends Sprite {
 		
 		super ();
 		
+		scaleX = 4;
+		scaleY = 4;
+
+		var game = new Game();
+		addChild( game );
 		
 		
 	}

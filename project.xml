@@ -5,7 +5,7 @@
 	<app main="Main" path="Export" file="LD39" />
 	
 	<source path="Source" />
-	<window width="800" height="600" fps="60" vsync="true" hardware="true" resizable="false" />
+	<window width="1024" height="960" fps="60" vsync="true" hardware="true" resizable="false" />
 	<haxelib name="openfl" />
 	
 	<assets path="Assets" rename="assets" />
