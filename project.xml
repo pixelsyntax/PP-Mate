@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+	
+	<meta title="LD39" package="ld39" version="1.0.0" company="Pixelsyntax" />
+	<app main="Main" path="Export" file="LD39" />
+	
+	<source path="Source" />
+	<window width="800" height="600" fps="60" vsync="true" hardware="true" resizable="false" />
+	<haxelib name="openfl" />
+	
+	<assets path="Assets" rename="assets" />
+	
+</project>
