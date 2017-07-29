@@ -17,12 +17,13 @@ class Game extends Sprite {
 
 	var roomTiles : Array<Tile>;
 
+
 	public function new(){
 
 		super();
 		setupGUI();
 		setupGameview();
-		setRoom( true, true, true, true );
+		setRoom( false, false, false, false );
 
 	}
 
@@ -43,16 +44,53 @@ class Game extends Sprite {
 			gameview.removeTile( roomTiles.pop() );
 
 		//Border
-		//Top and bottom
-		for ( i in 0...16 ){
+		//Top
+		for ( i in 0...7)
 			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) );
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10 * 16 ) );
+		if ( entranceUp ){
+
+		} else { //No top door, fill in border
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 0 ) );
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 0 ) );	
 		}
-		//Left and right
-		for ( i in 1...10 ){
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i * 16 ) );
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i * 16 ) );	
+		for ( i in 9...16)
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) );
+		//Bottom
+		for ( i in 0...7)
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) );
+		if ( entranceUp ){
+
+		} else { //No top door, fill in border
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 10*16 ) );
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 10*16 ) );	
 		}
+		for ( i in 9...16)
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) );
+		
+		//Left
+		for ( i in 1...5 )
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) );
+		if ( entranceLeft ){
+
+		} else {
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 5*16 ) );
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 6*16 ) );
+		}
+		for ( i in 7...10 )
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) );
+		
+		//Right
+		for ( i in 1...5 )
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) );
+		if ( entranceLeft ){
+
+		} else {
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 5*16 ) );
+			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 6*16 ) );
+		}
+		for ( i in 7...10 )
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) );
+		
 
 	}
 
