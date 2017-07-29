@@ -60,7 +60,7 @@ class Game extends Sprite {
 
 		player.x += dx;
 		player.y += dy;
-
+		player.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 	}
 
 	function tickInput(){
