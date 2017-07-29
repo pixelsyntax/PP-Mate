@@ -8,6 +8,9 @@ import openfl.display.Tile;
 import openfl.display.Tileset;
 import openfl.display.Tilemap;
 import openfl.geom.Rectangle;
+import openfl.events.Event;
+import openfl.events.KeyboardEvent;
+import openfl.events.MouseEvent;
 
 class Game extends Sprite {
 	
@@ -16,14 +19,74 @@ class Game extends Sprite {
 	var tileset : Tileset;
 
 	var roomTiles : Array<Tile>;
+	var player : Tile;
 
+	var input : Map<InputType, Int>;
 
 	public function new(){
 
 		super();
+		setupInput();
 		setupGUI();
 		setupGameview();
 		setRoom( false, false, false, false );
+		setupPlayer();
+
+		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
+
+	}
+
+	function tick(){
+
+		tickInput();
+
+	}
+
+	function tickInput(){
+
+		for ( inputType in input.keys() ){
+			var val : Int = input.get(inputType);
+			if ( val != 0 )
+				input.set( val + 1 );
+		}
+
+	}
+
+	function getInputActivating( inputType : Game.InputType ){
+		return input.get( inputType ) == 1;
+	}
+
+	function getInputActive( inputType : Game.InputType ){
+		return input.get( inputType ) > 0;
+	}
+
+	function getInputDeactivating( inputType : Game.InputType ){
+		return input.get( inputType ) < 0;
+	}
+
+	function setupInput(){
+
+		input = new Map<InputType, Int>();
+		input.set( quit, 0 );
+		input.set( up, 0 );
+		input.set( right, 0 );
+		input.set( down, 0 );
+		input.set( left, 0 );
+		input.set( shoot, 0 );
+
+	}
+
+	function setupPlayer(){
+
+		if ( player != null ){
+			gameview.removeTile( player );
+		}
+		player = new Tile( spriteIndices.get( player_a ) );
+		player.originX = 16;
+		player.originY = 16;
+		gameview.addTile( player );
+		player.x = 128;
+		player.y = 128;
 
 	}
 
@@ -214,6 +277,40 @@ class Game extends Sprite {
 
 	}
 
+
+
+	function onEnterFrame( e : Event ){
+
+		tick();
+
+	}
+
+	function onMouseClick( e : MouseEvent ){
+
+	}
+
+	function onMouseRightClick( e : MouseEvent ){
+
+	}
+
+	function onKeyDown( e : KeyboardEvent ){
+
+	}
+
+	function onKeyUp( e : KeyboardEvent ){
+
+	}
+
+	function onAddedToStage( e : Event ){
+
+		addEventListener( Event.ENTER_FRAME, onEnterFrame );
+		addEventListener( MouseEvent.CLICK, onMouseClick );
+		addEventListener( MouseEvent.RIGHT_CLICK, onMouseRightClick );
+		addEventListener( KeyboardEvent.KEY_DOWN, onKeyDown );
+		addEventListener( KeyboardEvent.KEY_UP, onKeyUp );
+
+	}
+
 }
 
 enum SpriteType {
@@ -265,4 +362,15 @@ enum SpriteType {
 	particle_smoke_large;
 	particle_smoke_medium;
 	particle_smoke_small;
+}
+
+enum InputType {
+
+	quit;
+	left;
+	right;
+	up;
+	down;
+	shoot;
+
 }
