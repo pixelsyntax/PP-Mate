@@ -22,6 +22,7 @@ class Game extends Sprite {
 		super();
 		setupGUI();
 		setupGameview();
+		setRoom( true, true, true, true );
 
 	}
 
@@ -44,7 +45,13 @@ class Game extends Sprite {
 		//Border
 		//Top and bottom
 		for ( i in 0...16 ){
-
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) );
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10 * 16 ) );
+		}
+		//Left and right
+		for ( i in 1...10 ){
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i * 16 ) );
+			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i * 16 ) );	
 		}
 
 	}
