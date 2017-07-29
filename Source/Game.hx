@@ -36,6 +36,7 @@ class Game extends Sprite {
 
 	var vx : Float = 0;
 	var vy : Float = 0;
+	var collisionVector : Point;
 
 	public function new(){
 
@@ -43,7 +44,7 @@ class Game extends Sprite {
 
 		time = 0;
 		timeStep = 1/60;
-
+		collisionVector = new Point(0,0);
 		setupInput();
 		setupPlayer();
 		setupGUI();
@@ -86,7 +87,21 @@ class Game extends Sprite {
 			vx = Math.min( 2, vx + acceleration );
 		if ( !getInputActive(left) && !getInputActive(right) )
 			vx = vx * 0.9;
+
 		//Move Player
+		var nx = vx;
+		var ny = vy;
+		while ( circleCollidesWithMap( player.x, player.y, 13 ) ){
+			player.x -= collisionVector.x / 13;
+			player.y -= collisionVector.y / 13;
+		}
+		if( circleCollidesWithMap( player.x + vx, player.y, 12 ) ){
+			vx = 0;
+		}
+		if( circleCollidesWithMap( player.x, player.y + vy, 12 ) ){
+			vy = 0;
+			
+		}
 		player.x += vx;
 		player.y += vy;
 		var rollSpeed = 1.5;
@@ -194,50 +209,50 @@ class Game extends Sprite {
 		//Border
 		//Top
 		for ( i in 0...7)
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) ) );
 		if ( entranceUp ){
 
 		} else { //No top door, fill in border
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 0 ) );
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 0 ) );	
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 0 ) ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 0 ) ) );
 		}
 		for ( i in 9...16)
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) ) );
 		//Bottom
 		for ( i in 0...7)
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) ) );
 		if ( entranceUp ){
 
 		} else { //No top door, fill in border
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 10*16 ) );
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 10*16 ) );	
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 10*16 ) ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 10*16 ) ) );
 		}
 		for ( i in 9...16)
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) ) );
 		
 		//Left
 		for ( i in 1...5 )
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) ) );
 		if ( entranceLeft ){
 
 		} else {
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 5*16 ) );
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 6*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 5*16 ) ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 6*16 ) ) );
 		}
 		for ( i in 7...10 )
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) ) );
 		
 		//Right
 		for ( i in 1...5 )
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) ) );
 		if ( entranceLeft ){
 
 		} else {
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 5*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 5*16 ) ) );
 			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 6*16 ) );
 		}
 		for ( i in 7...10 )
-			gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) );
+			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) ) );
 		
 
 	}
@@ -362,16 +377,26 @@ class Game extends Sprite {
 
 	}
 
+	function circleCollidesWithMap( circleX : Float, circleY : Float, circleR : Float ){
+
+		for ( tile in roomTiles ){
+			if ( intersectCircleTile( circleX, circleY, circleR, tile.x, tile.y ) )
+				return true;
+		}
+		return false;
+
+	}
+
 	/* Test if a circle intersects a square tile
 		Create two circles, one within the tile touching each edge, and one that touches each corner of the square
 		If the test circle intersects the inner circle, it is a definite collision
 		If the test circle intersects the outer circle, test to see if the closest point of the test circle is
 		within the tile bounding box
 	*/
-	function intersectCircleTile( circleX : Float, circleY : Float, circleR : Float, tileX : Float, tileY : Float, tileSize : Float ){
+	function intersectCircleTile( circleX : Float, circleY : Float, circleR : Float, tileX : Float, tileY : Float ){
 
 		var tileInnerCircleRadius = 8;
-		var tileOuterCircleRadius = 11;
+		var tileOuterCircleRadius = 16;
 
 		var tileCentreX = tileX + 8;
 		var tileCentreY = tileY + 8;
@@ -385,14 +410,22 @@ class Game extends Sprite {
 		if ( d > circleR + tileOuterCircleRadius )
 			return false;
 
-		//Circle intersects tile inner circle
-		if ( d < circleR + tileInnerCircleRadius )
-			return true;
-
 		var testVector = tileCentre.subtract( circleCentre );
 		testVector.normalize( circleR );
+
+		//Circle intersects tile inner circle
+		if ( d < circleR + tileInnerCircleRadius ){
+			collisionVector = testVector;
+			return true;
+		}
+
 		var testPoint = circleCentre.add( testVector );
-		return ( testPoint.x < tileX + tileSize && testPoint.y < tileY + tileSize && testPoint.x > tileX && testPoint.y > tileY );
+		if ( testPoint.x < tileX + 16 && testPoint.y < tileY + 16 && testPoint.x > tileX && testPoint.y > tileY ){
+			collisionVector = testVector;
+			return true;
+		}
+
+		return false;
 	}
 
 	function onEnterFrame( e : Event ){
