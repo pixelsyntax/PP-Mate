@@ -1,0 +1,27 @@
+LD39 "Running out of power"
+	Pixelart Maze Shooter
+
+POWER
+	No health. Taking damage reduces remaining power. Power also decreases over time. Running out of power ends the game.
+	Power is awarded for destroying enemies
+
+PLAYER
+	Player is some kind of spaceship thing and controls using twin sticks or mouse&keyboard. Taking damage reduces power
+
+GUI
+	Main screen
+		One dungeon room with any enemies, doors etc.
+		Rooms cannot be exited until enemies are destroyed
+
+	Minimap
+		Shows explored area of map and boss rooms etc
+
+	Power Bar
+		Remaining power
+
+	Score timer
+		How long the player has survived
+
+
+Milestones
+	
