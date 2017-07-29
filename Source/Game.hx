@@ -14,24 +14,41 @@ import openfl.events.MouseEvent;
 import openfl.ui.Keyboard;
 
 class Game extends Sprite {
+
+	var time : Float;
+	var timeStep : Float;
 	
 	var spriteIndices : Map< SpriteType, Int >;
 	var gameview : Tilemap;
 	var tileset : Tileset;
 
 	var roomTiles : Array<Tile>;
-	var player : Tile;
-
+	var player : Sprite;
+	var playerTexture : Bitmap;
+	var playerHead : Sprite;
+	var playerMask : Bitmap;
 	var input : Map<InputType, Int>;
+	var cursor : Bitmap;
+
+	var testBitmap : Bitmap;
+	var testMask : Sprite;
+
+	var vx : Float = 0;
+	var vy : Float = 0;
 
 	public function new(){
 
 		super();
+
+		time = 0;
+		timeStep = 1/60;
+
 		setupInput();
+		setupPlayer();
 		setupGUI();
 		setupGameview();
 		setRoom( false, false, false, false );
-		setupPlayer();
+		setupCursor();
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
 
@@ -39,28 +56,53 @@ class Game extends Sprite {
 
 	function tick(){
 
+		openfl.ui.Mouse.hide();
+
+		cursor.x = mouseX - 8;
+		cursor.y = mouseY - 8;
+
+		time += timeStep;
+
 		tickPlayer();
 		tickInput();
-
+		// testMask.cacheAsBitmap = true;
+		
 	}
 
 	function tickPlayer(){
 
-		var dx = 0;
-		var dy = 0;
+		var acceleration = 0.25;
 
 		if ( getInputActive( up ) )
-			dy -= 2;
+			vy = Math.max( -2, vy - acceleration );
 		if ( getInputActive( down ) )
-			dy += 2;
+			vy = Math.min( 2, vy + acceleration );
+		if ( !getInputActive(up) && !getInputActive(down) )
+			vy = vy * 0.9;
 		if ( getInputActive( left ) )
-			dx -= 2;
+			vx = Math.max( -2, vx - acceleration );
 		if ( getInputActive( right ) )
-			dx += 2;
+			vx = Math.min( 2, vx + acceleration );
+		if ( !getInputActive(left) && !getInputActive(right) )
+			vx = vx * 0.9;
+		//Move Player
+		player.x += vx;
+		player.y += vy;
+		var rollSpeed = 1.5;
+		playerTexture.x += rollSpeed * vx;
+		playerTexture.y += rollSpeed * vy;
+		
+		while ( playerTexture.x < -96 )
+			playerTexture.x += 64;
+		while ( playerTexture.x > -32 )
+			playerTexture.x -= 64;
+		while ( playerTexture.y < -96 )
+			playerTexture.y += 64;
+		while ( playerTexture.y > -32 )
+			playerTexture.y -= 64;
+		
+		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 
-		player.x += dx;
-		player.y += dy;
-		player.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 	}
 
 	function tickInput(){
@@ -100,14 +142,35 @@ class Game extends Sprite {
 	function setupPlayer(){
 
 		if ( player != null ){
-			gameview.removeTile( player );
+			removeChild( player );
 		}
-		player = new Tile( spriteIndices.get( player_a ) );
-		player.originX = 16;
-		player.originY = 16;
-		gameview.addTile( player );
+		player = new Sprite();
+		playerTexture = new Bitmap( Assets.getBitmapData( "assets/playertexture.png" ) );
+		playerTexture.x = -playerTexture.width/2;
+		playerTexture.y = -playerTexture.height/2;
+		player.addChild( playerTexture );
+
+		playerMask = new Bitmap( Assets.getBitmapData("assets/playermask.png" ) );
+		playerMask.x = -playerMask.width/2;
+		playerMask.y = -playerMask.height/2;
+		player.addChild( playerMask );
+		playerHead = new Sprite();
+		var headBMP = new Bitmap( Assets.getBitmapData( "assets/playerhead.png") );
+		playerHead.addChild( headBMP );
+		headBMP.x = -playerHead.width/2;
+		headBMP.y = -18;
+		player.addChild( playerHead );
 		player.x = 128;
 		player.y = 128;
+		addChild( player );
+	}
+
+	function setupCursor(){
+
+		if ( cursor != null )
+			removeChild( cursor );
+		cursor = new Bitmap( Assets.getBitmapData( "assets/cursor.png" ) );
+		addChild( cursor );
 
 	}
 
@@ -384,6 +447,49 @@ class Game extends Sprite {
 
 	}
 
+	private function applyMask (bitmap:Bitmap, mask:openfl.display.DisplayObject):Void {
+		
+		#if flash
+		
+		bitmap.mask = mask;
+		
+		#else
+		
+		var bitmapDataMask = new BitmapData (bitmap.bitmapData.width, bitmap.bitmapData.height, true, 0);
+		bitmapDataMask.draw (mask);
+		
+		var shader = new openfl.display.Shader ();
+		shader.glFragmentSource = 
+			
+			"varying float vAlpha;
+			varying vec2 vTexCoord;
+			uniform sampler2D uImage0;
+			uniform sampler2D uImage1;
+			
+			void main(void) {
+				
+				vec4 color = texture2D (uImage0, vTexCoord);
+				float mask = texture2D (uImage1, vTexCoord).a;
+				
+				if (color.a == 0.0 || mask == 0.0) {
+					
+					gl_FragColor = vec4 (0.0, 0.0, 0.0, 0.0);
+					
+				} else {
+					
+					gl_FragColor = vec4 (color.rgb / color.a, mask * color.a * vAlpha);
+					
+				}
+				
+			}";
+		
+		shader.data.uImage1.input = bitmapDataMask;
+		
+		bitmap.filters = [ new openfl.filters.ShaderFilter (shader) ];
+		
+		#end
+		
+	}
 }
 
 enum SpriteType {

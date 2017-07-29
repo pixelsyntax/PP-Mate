@@ -80,7 +80,7 @@ Milestones
 			Enemy damage graphics
 			Enemy death graphics
 *	4	Single room
-	5	Player moves in room
+*	5	Player moves in room
 	6	Player collides with room tiles
 	7	Doors
 	8	Multiple rooms, instant transition
