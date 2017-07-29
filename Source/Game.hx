@@ -8,6 +8,7 @@ import openfl.display.Tile;
 import openfl.display.Tileset;
 import openfl.display.Tilemap;
 import openfl.geom.Rectangle;
+import openfl.geom.Point;
 import openfl.events.Event;
 import openfl.events.KeyboardEvent;
 import openfl.events.MouseEvent;
@@ -361,7 +362,38 @@ class Game extends Sprite {
 
 	}
 
+	/* Test if a circle intersects a square tile
+		Create two circles, one within the tile touching each edge, and one that touches each corner of the square
+		If the test circle intersects the inner circle, it is a definite collision
+		If the test circle intersects the outer circle, test to see if the closest point of the test circle is
+		within the tile bounding box
+	*/
+	function intersectCircleTile( circleX : Float, circleY : Float, circleR : Float, tileX : Float, tileY : Float, tileSize : Float ){
 
+		var tileInnerCircleRadius = 8;
+		var tileOuterCircleRadius = 11;
+
+		var tileCentreX = tileX + 8;
+		var tileCentreY = tileY + 8;
+
+		var circleCentre = new Point ( circleX, circleY );
+		var tileCentre = new Point( tileCentreX, tileCentreY );
+
+		var d = Point.distance( circleCentre, tileCentre );
+
+		//Circle doesn't interset tile outer circle, no collision possible
+		if ( d > circleR + tileOuterCircleRadius )
+			return false;
+
+		//Circle intersects tile inner circle
+		if ( d < circleR + tileInnerCircleRadius )
+			return true;
+
+		var testVector = tileCentre.subtract( circleCentre );
+		testVector.normalize( circleR );
+		var testPoint = circleCentre.add( testVector );
+		return ( testPoint.x < tileX + tileSize && testPoint.y < tileY + tileSize && testPoint.x > tileX && testPoint.y > tileY );
+	}
 
 	function onEnterFrame( e : Event ){
 
