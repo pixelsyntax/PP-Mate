@@ -8,6 +8,16 @@ POWER
 PLAYER
 	Player is some kind of spaceship thing and controls using twin sticks or mouse&keyboard. Taking damage reduces power
 
+PLAYER WEAPONS
+	Basic
+		One bullet per second
+	Machine gun
+		Three bullets per second
+	Spread
+		Three bullets per second spread
+	Beam
+		Continuous beam
+
 ENEMIES
 	Evil looking geometric shapes
 		Circle
@@ -52,6 +62,7 @@ Milestones
 			Power bar
 			Boss health
 			Score timer assets
+			Weapon icons
 	3	Spritesheet
 			Environment tiles
 			Level exit
