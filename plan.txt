@@ -56,14 +56,14 @@ GUI
 
 
 Milestones
-	1	GUI mockup
-	2	GUI spritesheet
+*	1	GUI mockup
+*	2	GUI spritesheet
 			Minimap assets
 			Power bar
 			Boss health
 			Score timer assets
 			Weapon icons
-	3	Spritesheet
+*	3	Spritesheet
 			Environment tiles
 			Level exit
 			Player sprites
