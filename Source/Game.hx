@@ -15,6 +15,8 @@ class Game extends Sprite {
 	var gameview : Tilemap;
 	var tileset : Tileset;
 
+	var roomTiles : Array<Tile>;
+
 	public function new(){
 
 		super();
@@ -27,6 +29,23 @@ class Game extends Sprite {
 
 		var guiBG = new Bitmap( Assets.getBitmapData("assets/background.png") );
 		addChild( guiBG );
+
+	}
+
+	//Configure a room
+	function setRoom( entranceUp : Bool, entranceRight : Bool, entranceDown : Bool, entranceLeft : Bool ){
+
+		if ( roomTiles == null )
+			roomTiles = new Array<Tile>();
+
+		while ( roomTiles.length > 0 )
+			gameview.removeTile( roomTiles.pop() );
+
+		//Border
+		//Top and bottom
+		for ( i in 0...16 ){
+
+		}
 
 	}
 
@@ -130,8 +149,9 @@ class Game extends Sprite {
 		defineSprite( 240, 208, 16, 16, particle_smoke_large );
 		defineSprite( 224, 216, 8, 8, particle_smoke_medium );
 		defineSprite( 232, 216, 4, 4, particle_smoke_small );
-		
+
 		gameview = new Tilemap( 256, 176, tileset, false );
+		addChild( gameview );
 	}
 
 	function defineSprite( x : Int, y : Int, width: Int, height : Int, ?spriteType : SpriteType ){
@@ -140,7 +160,7 @@ class Game extends Sprite {
 			spriteIndices = new Map<SpriteType, Int>();
 
 		if ( tileset == null )
-			tileset = new Tileset( "assets/spritesheet.png" );
+			tileset = new Tileset( Assets.getBitmapData( "assets/spritesheet.png" ) );
 
 		var rect = new Rectangle( x, y, width, height );
 		var index = tileset.addRect( rect );
