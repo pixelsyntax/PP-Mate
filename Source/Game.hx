@@ -11,6 +11,7 @@ import openfl.geom.Rectangle;
 import openfl.events.Event;
 import openfl.events.KeyboardEvent;
 import openfl.events.MouseEvent;
+import openfl.ui.Keyboard;
 
 class Game extends Sprite {
 	
@@ -38,16 +39,36 @@ class Game extends Sprite {
 
 	function tick(){
 
+		tickPlayer();
 		tickInput();
+
+	}
+
+	function tickPlayer(){
+
+		var dx = 0;
+		var dy = 0;
+
+		if ( getInputActive( up ) )
+			dy -= 2;
+		if ( getInputActive( down ) )
+			dy += 2;
+		if ( getInputActive( left ) )
+			dx -= 2;
+		if ( getInputActive( right ) )
+			dx += 2;
+
+		player.x += dx;
+		player.y += dy;
 
 	}
 
 	function tickInput(){
 
 		for ( inputType in input.keys() ){
-			var val : Int = input.get(inputType);
+			var val : Int = input.get( inputType );
 			if ( val != 0 )
-				input.set( val + 1 );
+				input.set( inputType, val + 1 );
 		}
 
 	}
@@ -285,29 +306,81 @@ class Game extends Sprite {
 
 	}
 
-	function onMouseClick( e : MouseEvent ){
-
+	function onMouseDown( e : MouseEvent ){
+		input.set( shoot, 1 );
 	}
 
-	function onMouseRightClick( e : MouseEvent ){
+	function onMouseUp( e : MouseEvent ){
+		input.set( shoot, -1 );
+	}
 
+	function onMouseRightDown( e : MouseEvent ){
+		input.set( shoot, 1 );
+	}
+
+	function onMouseRightUp( e : MouseEvent ){
+		input.set( shoot, -1 );
 	}
 
 	function onKeyDown( e : KeyboardEvent ){
-
+		switch( e.keyCode ){
+			default:
+				return;
+			case Keyboard.W:
+				input.set( up, 1 );
+			case Keyboard.A:
+				input.set( left, 1 );
+			case Keyboard.S:
+				input.set( down, 1 );
+			case Keyboard.D:
+				input.set( right, 1 );
+			case Keyboard.UP:
+				input.set( up, 1 );
+			case Keyboard.LEFT:
+				input.set( left, 1 );
+			case Keyboard.DOWN:
+				input.set( down, 1 );
+			case Keyboard.RIGHT:
+				input.set( right, 1 );
+			case Keyboard.ESCAPE:
+				input.set( quit, 1 );
+				Sys.exit(0);
+		}
 	}
 
 	function onKeyUp( e : KeyboardEvent ){
-
+		switch( e.keyCode ){
+			default:
+				return;
+			case Keyboard.W:
+				input.set( up, -1 );
+			case Keyboard.A:
+				input.set( left, -1 );
+			case Keyboard.S:
+				input.set( down, -1 );
+			case Keyboard.D:
+				input.set( right, -1 );
+			case Keyboard.UP:
+				input.set( up, -1 );
+			case Keyboard.LEFT:
+				input.set( left, -1 );
+			case Keyboard.DOWN:
+				input.set( down, -1 );
+			case Keyboard.RIGHT:
+				input.set( right, -1 );
+			case Keyboard.ESCAPE:
+				input.set( quit, -1 );
+		}
 	}
-
 	function onAddedToStage( e : Event ){
 
 		addEventListener( Event.ENTER_FRAME, onEnterFrame );
-		addEventListener( MouseEvent.CLICK, onMouseClick );
-		addEventListener( MouseEvent.RIGHT_CLICK, onMouseRightClick );
-		addEventListener( KeyboardEvent.KEY_DOWN, onKeyDown );
-		addEventListener( KeyboardEvent.KEY_UP, onKeyUp );
+		addEventListener( MouseEvent.MOUSE_DOWN, onMouseDown );
+		addEventListener( MouseEvent.MOUSE_UP, onMouseUp );
+		addEventListener( MouseEvent.RIGHT_MOUSE_DOWN, onMouseRightDown );
+		addEventListener( MouseEvent.RIGHT_MOUSE_UP, onMouseRightUp );
+		stage.addEventListener( KeyboardEvent.KEY_DOWN, onKeyDown );
+		stage.addEventListener( KeyboardEvent.KEY_UP, onKeyUp );
 
 	}
 
