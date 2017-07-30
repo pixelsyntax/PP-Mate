@@ -107,6 +107,11 @@ class Game extends Sprite {
 	var sounds : Map<Game.SoundType, Array<Sound>>;
 	var soundTriggeredThisFrame : Bool;
 
+	var clockDigits : Array<Tile>;
+	var clockMinutes : Int;
+	var clockSeconds : Int;
+	var clockFrames : Int;
+
 	public function new(){
 
 		singleton = this;
@@ -131,6 +136,7 @@ class Game extends Sprite {
 		setupPlayer();
 		setupCursor();
 		setupGUI();
+		setupClock();
 		setupSounds();
 		setWeapon( weapon_none );
 
@@ -143,6 +149,8 @@ class Game extends Sprite {
 	}
 
 	function tick(){
+
+		updateClock();
 
 		openfl.ui.Mouse.hide();
 		animate = !animate;
@@ -798,6 +806,16 @@ class Game extends Sprite {
 		guiTileset.addRect( new Rectangle( 96, 96, 32, 32 ) ); //Weapon icon beam 6
 		guiTileset.addRect( new Rectangle( 80, 32, 1, 16 ) ); //healthbar normal 7
 		guiTileset.addRect( new Rectangle( 81, 32, 1, 16 ) ); //healthbar white 8
+		spriteIndices.set( clock_0, guiTileset.addRect( new Rectangle( 0, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_1, guiTileset.addRect( new Rectangle( 12, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_2, guiTileset.addRect( new Rectangle( 24, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_3, guiTileset.addRect( new Rectangle( 36, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_4, guiTileset.addRect( new Rectangle( 48, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_5, guiTileset.addRect( new Rectangle( 60, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_6, guiTileset.addRect( new Rectangle( 72, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_7, guiTileset.addRect( new Rectangle( 84, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_8, guiTileset.addRect( new Rectangle( 96, 0, 12, 18 ) ) ); //clock digits
+		spriteIndices.set( clock_9, guiTileset.addRect( new Rectangle( 108, 0, 12, 18 ) ) ); //clock digits
 		
 		gui = new Tilemap( 192, 64, guiTileset, false );
 		addChild( gui );
@@ -1398,6 +1416,49 @@ class Game extends Sprite {
 			minimapData[currentRoomIndex-1] = minimapHiddenData[currentRoomIndex-1];
 
 		drawMinimap();
+
+	}
+
+	function setupClock(){
+
+		if ( clockDigits == null ){
+			clockDigits = new Array<Tile>();
+		}
+
+		clockFrames = 0;
+
+		while( clockDigits.length > 0 )
+			gui.removeTile( clockDigits.pop() );
+
+		clockDigits.push( gui.addTile( new Tile ( spriteIndices.get( SpriteType.clock_8 ), 68, 41 ) ) );
+		clockDigits.push( gui.addTile( new Tile ( spriteIndices.get( SpriteType.clock_8 ), 82, 41 ) ) );
+
+		clockDigits.push( gui.addTile( new Tile ( spriteIndices.get( SpriteType.clock_8 ), 102, 41 ) ) );
+		clockDigits.push( gui.addTile( new Tile ( spriteIndices.get( SpriteType.clock_8 ), 118, 41 ) ) );
+
+		clockDigits.push( gui.addTile( new Tile ( spriteIndices.get( SpriteType.clock_8 ), 136, 41 ) ) );
+		clockDigits.push( gui.addTile( new Tile ( spriteIndices.get( SpriteType.clock_8 ), 150, 41 ) ) );
+
+
+	}
+
+	function updateClock(){
+
+		++clockFrames;
+		var clockBaseFrame : Int = spriteIndices.get( clock_0 );
+
+		clockSeconds = Math.floor(clockFrames / 60);
+		clockMinutes = Math.floor(clockSeconds / 60);
+
+		clockDigits[0].id = clockBaseFrame + Math.floor(clockMinutes / 10);
+		clockDigits[1].id = clockBaseFrame + Math.floor(clockMinutes % 10);
+		var displaySeconds = clockSeconds % 60;
+		clockDigits[2].id = clockBaseFrame + Math.floor(displaySeconds / 10);
+		clockDigits[3].id = clockBaseFrame + Math.floor(displaySeconds % 10);
+		var displayFrames = clockFrames % 60;
+		clockDigits[4].id = clockBaseFrame + Math.floor(displayFrames / 10);
+		clockDigits[5].id = clockBaseFrame + Math.floor( displayFrames % 10);
+
 
 	}
 
@@ -2031,6 +2092,18 @@ enum SpriteType {
 	minimap_currentRoom;
 	minimap_doorH;
 	minimap_doorV;
+	clock_0;
+	clock_1;
+	clock_2;
+	clock_3;
+	clock_4;
+	clock_5;
+	clock_6;
+	clock_7;
+	clock_8;
+	clock_9;
+	
+
 }
 
 enum InputType {
