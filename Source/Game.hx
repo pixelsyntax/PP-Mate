@@ -16,10 +16,12 @@ import openfl.ui.Keyboard;
 
 class Game extends Sprite {
 
+	public static var singleton;
+
 	var time : Float;
 	var timeStep : Float;
 	
-	var spriteIndices : Map< SpriteType, Int >;
+	public var spriteIndices : Map< SpriteType, Int >;
 	var gameview : Tilemap;
 	var tileset : Tileset;
 
@@ -34,7 +36,7 @@ class Game extends Sprite {
 	var backgroundTiles : Array<Tile>;
 	var doorTiles : Array<Tile>;
 
-	var player : Sprite;
+	public var player : Sprite;
 	var playerTexture : Bitmap;
 	var playerHead : Sprite;
 	var playerMask : Bitmap;
@@ -64,8 +66,11 @@ class Game extends Sprite {
 	var roomBackgroundsLibrary : Array<Array<Int>>;
 
 	var playerProjectiles : Array<Projectile>;
+	var enemies : Array<Enemy>;
 
 	public function new(){
+
+		singleton = this;
 
 		super();
 
@@ -87,6 +92,9 @@ class Game extends Sprite {
 		addNeighbouringRoomsToMinimap();
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
+
+		spawnEnemy( circle, 48, 48 );
+
 	}
 
 	function tick(){
@@ -101,7 +109,9 @@ class Game extends Sprite {
 		tickDoors();
 		tickPlayer();
 		tickInput();
+		tickEnemies();
 		tickProjectiles();
+
 
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
@@ -110,6 +120,36 @@ class Game extends Sprite {
 		shakeOffset.y = 5 * Math.random() * screenShake - screenShake/2;
 		worldContainer.x = shakeOffset.x;
 		worldContainer.y = shakeOffset.y;
+
+		if ( enemies.length == 0 && !roomComplete )
+			completeRoom();
+
+	}
+
+	function tickEnemies(){
+
+		var i = 0;
+		var enemy : Enemy;
+		while( i < enemies.length ){
+
+			enemy = enemies[i];
+			enemy.tick();
+			if ( circleCollidesWithMap( enemy.x + enemy.vx, enemy.y, enemy.radius ) )
+				enemy.vx *= -0.5;
+			if ( circleCollidesWithMap( enemy.x, enemy.y + enemy.vy, enemy.radius ) )
+				enemy.vy *= -0.5;
+			
+			enemy.x += enemy.vx;
+			enemy.y += enemy.vy;
+			if ( enemy.isExpired ){
+				enemies.remove( enemy );
+				gameview.removeTile( enemy );
+
+				//TODO spawn death effect
+			} else
+				++i;
+
+		}
 
 	}
 
@@ -163,7 +203,6 @@ class Game extends Sprite {
 
 		if ( getInputActivating(InputType.shoot) ){
 			playerShoot();
-			completeRoom();
 		}
 
 		if ( roomComplete ){
@@ -189,6 +228,14 @@ class Game extends Sprite {
 			projectile = playerProjectiles[i];
 			projectile.x += projectile.vx;
 			projectile.y += projectile.vy;
+
+			for ( enemy in enemies ){
+				if ( circleCollidesWithCircle( projectile.x, projectile.y, 8, enemy.x, enemy.y, enemy.radius + 2) ){
+					projectile.isExpired = true;
+					enemy.receiveHit();
+				}
+			}
+
 			if ( projectile.x < -32 || projectile.x > gameview.width + 32 || projectile.y < -32 || projectile.y > gameview.height + 32 )
 				projectile.isExpired = true;
 			else if ( circleCollidesWithMap( projectile.x, projectile.y, 8 ) ){
@@ -201,9 +248,9 @@ class Game extends Sprite {
 			if ( projectile.isExpired ){
 				playerProjectiles.remove( projectile );
 				gameview.removeTile( projectile );
-			}
-			else 
+			} else 
 				++i;
+	
 		}
 
 	}
@@ -261,6 +308,13 @@ class Game extends Sprite {
 
 	}
 
+	function spawnEnemy( enemyType : Enemy.EnemyType, ?x : Float, ?y : Float ){
+
+		var enemy = new Enemy( enemyType, x, y );
+		enemies.push( enemy );
+		gameview.addTile( enemy );
+
+	}
 
 	function getInputActivating( inputType : Game.InputType ){
 		return input.get( inputType ) == 1;
@@ -389,6 +443,13 @@ class Game extends Sprite {
 		if ( backgroundTiles == null )
 			backgroundTiles = new Array<Tile>();
 
+		if ( enemies == null )
+			enemies = new Array<Enemy>();
+
+		while ( enemies.length > 0 ){
+			gameview.removeTile( enemies.pop() );
+		}
+
 		//Remove any player projectiles
 		if ( playerProjectiles == null )
 			playerProjectiles = new Array<Projectile>();
@@ -452,15 +513,15 @@ class Game extends Sprite {
 		//Enemies
 		//Circle
 		defineSprite( 176, 176, 16, 16, enemy_circle_l );
-		defineSprite( 176, 192, 16, 16, enemy_circle_l );
+		defineSprite( 176, 192, 16, 16, enemy_circle_r );
 		defineSprite( 192, 208, 16, 16, enemy_circle_damage );
 		//Triangle
 		defineSprite( 0, 96, 32, 32, enemy_triangle_l );
-		defineSprite( 32, 96, 32, 32, enemy_triangle_l );
+		defineSprite( 32, 96, 32, 32, enemy_triangle_r );
 		defineSprite( 64, 96, 32, 32, enemy_triangle_damage );
 		//Square
 		defineSprite( 96, 96, 32, 32, enemy_square_l );
-		defineSprite( 128, 96, 32, 32, enemy_square_l );
+		defineSprite( 128, 96, 32, 32, enemy_square_r );
 		defineSprite( 160, 96, 32, 32, enemy_square_damage );
 		//Pentagon
 		defineSprite( 0, 128, 48, 48, enemy_pentagon );
@@ -536,7 +597,15 @@ class Game extends Sprite {
 
 	}
 
-	function circleCollidesWithMap( circleX : Float, circleY : Float, circleR : Float ){
+	function circleCollidesWithCircle( ax : Float, ay : Float, ar : Float, bx : Float, by : Float, br : Float ) : Bool {
+
+		var PointA = new Point( ax, ay );
+		var PointB = new Point( bx, by );
+		return Point.distance(PointA, PointB) <= ar + br;
+
+	}
+
+	function circleCollidesWithMap( circleX : Float, circleY : Float, circleR : Float ) : Bool {
 
 		for ( tile in doorTiles ){
 			if ( intersectCircleTile( circleX, circleY, circleR, tile.x, tile.y ) )
