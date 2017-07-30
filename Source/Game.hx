@@ -24,6 +24,9 @@ class Game extends Sprite {
 	var tileset : Tileset;
 
 	var roomTiles : Array<Tile>;
+	var backgroundTiles : Array<Tile>;
+	var doorTiles : Array<Tile>;
+
 	var player : Sprite;
 	var playerTexture : Bitmap;
 	var playerHead : Sprite;
@@ -38,6 +41,9 @@ class Game extends Sprite {
 	var vy : Float = 0;
 	var collisionVector : Point;
 
+	var shader : openfl.display.Shader;
+	var scrollPos : Point;
+
 	public function new(){
 
 		super();
@@ -46,14 +52,14 @@ class Game extends Sprite {
 		timeStep = 1/60;
 		collisionVector = new Point(0,0);
 		setupInput();
-		setupPlayer();
 		setupGUI();
 		setupGameview();
-		setRoom( false, false, false, false );
+		setupDoors();
+		setRoom( true, true, true, true );
+		setupPlayer();
 		setupCursor();
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
-
 	}
 
 	function tick(){
@@ -67,7 +73,8 @@ class Game extends Sprite {
 
 		tickPlayer();
 		tickInput();
-		// testMask.cacheAsBitmap = true;
+		
+		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
 	}
 
@@ -104,18 +111,18 @@ class Game extends Sprite {
 		}
 		player.x += vx;
 		player.y += vy;
-		var rollSpeed = 1.5;
-		playerTexture.x += rollSpeed * vx;
-		playerTexture.y += rollSpeed * vy;
+		var rollSpeed = 0.01;
+		scrollPos.x -= rollSpeed * vx;
+		scrollPos.y -= rollSpeed * vy;
 		
-		while ( playerTexture.x < -96 )
-			playerTexture.x += 64;
-		while ( playerTexture.x > -32 )
-			playerTexture.x -= 64;
-		while ( playerTexture.y < -96 )
-			playerTexture.y += 64;
-		while ( playerTexture.y > -32 )
-			playerTexture.y -= 64;
+		while ( scrollPos.x < 0.25 )
+			scrollPos.x += 0.5;
+		while ( scrollPos.x > 0.75 )
+			scrollPos.x -= 0.5;
+		while ( scrollPos.y < 0.25 )
+			scrollPos.y += 0.5;
+		while ( scrollPos.y > 0.75 )
+			scrollPos.y -= 0.5;
 		
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 
@@ -160,16 +167,19 @@ class Game extends Sprite {
 		if ( player != null ){
 			removeChild( player );
 		}
+		scrollPos = new Point();
+
 		player = new Sprite();
 		playerTexture = new Bitmap( Assets.getBitmapData( "assets/playertexture.png" ) );
-		playerTexture.x = -playerTexture.width/2;
-		playerTexture.y = -playerTexture.height/2;
+		playerTexture.x = -12;
+		playerTexture.y = -12;
 		player.addChild( playerTexture );
 
-		playerMask = new Bitmap( Assets.getBitmapData("assets/playermask.png" ) );
-		playerMask.x = -playerMask.width/2;
-		playerMask.y = -playerMask.height/2;
-		player.addChild( playerMask );
+		playerMask = new Bitmap( Assets.getBitmapData( "assets/playermask.png" ) );
+		// playerMask.graphics.beginFill(0xFFFFFF);
+		// player.addChild( playerMask );
+		applyMask( playerTexture, playerMask );
+
 		playerHead = new Sprite();
 		var headBMP = new Bitmap( Assets.getBitmapData( "assets/playerhead.png") );
 		playerHead.addChild( headBMP );
@@ -197,6 +207,25 @@ class Game extends Sprite {
 
 	}
 
+	function setupDoors(){
+
+		if ( doorTiles == null )
+			doorTiles = new Array<Tile>();
+
+		//Doors
+		//Top and bottom
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_h_l ), 7 * 16, 0 ) ) );
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_h_r ), 8 * 16 - 2, 0 ) ) );
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_h_l ), 7 * 16, 10*16 ) ) );
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_h_r ), 8 * 16 - 2, 10*16 ) ) );
+		//Left and right
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_u ), 0, 5*16 ) ) );
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_d ), 0, 6*16-2 ) ) );
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_u ), 15 * 16, 5*16 ) ) );
+		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_d ), 15 * 16, 6*16-2 ) ) );
+
+	}
+
 	//Configure a room
 	function setRoom( entranceUp : Bool, entranceRight : Bool, entranceDown : Bool, entranceLeft : Bool ){
 
@@ -205,6 +234,12 @@ class Game extends Sprite {
 
 		while ( roomTiles.length > 0 )
 			gameview.removeTile( roomTiles.pop() );
+
+		if ( backgroundTiles == null )
+			backgroundTiles = new Array<Tile>();
+
+		while ( backgroundTiles.length > 0 )
+			gameview.removeTile( backgroundTiles.pop() );
 
 		//Border
 		//Top
@@ -254,6 +289,15 @@ class Game extends Sprite {
 		for ( i in 7...10 )
 			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) ) );
 		
+		for ( y in 1...9 ){
+			for ( x in 1...14 ){
+				if ( Math.random() < 0.3 ){
+					var index = Math.round( Math.random() * 4 ) + 8;
+					var tile = new Tile( spriteIndices.get( tileSetA ) + index, x * 16, y * 16 );
+					backgroundTiles.push( gameview.addTile( tile ) );
+				}
+			}
+		}
 
 	}
 
@@ -378,6 +422,11 @@ class Game extends Sprite {
 	}
 
 	function circleCollidesWithMap( circleX : Float, circleY : Float, circleR : Float ){
+
+		for ( tile in doorTiles ){
+			if ( intersectCircleTile( circleX, circleY, circleR, tile.x, tile.y ) )
+				return true;ddd
+		}
 
 		for ( tile in roomTiles ){
 			if ( intersectCircleTile( circleX, circleY, circleR, tile.x, tile.y ) )
@@ -523,23 +572,29 @@ class Game extends Sprite {
 		var bitmapDataMask = new BitmapData (bitmap.bitmapData.width, bitmap.bitmapData.height, true, 0);
 		bitmapDataMask.draw (mask);
 		
-		var shader = new openfl.display.Shader ();
+		scrollPos = new Point( 0.5, 0.5 );
+		shader = new openfl.display.Shader ();
 		shader.glFragmentSource = 
 			
 			"varying float vAlpha;
 			varying vec2 vTexCoord;
+			uniform vec2 uScrollPos;
 			uniform sampler2D uImage0;
 			uniform sampler2D uImage1;
 			
 			void main(void) {
 				
-				vec4 color = texture2D (uImage0, vTexCoord);
+				vec4 color = texture2D (uImage0, vTexCoord + uScrollPos);
 				float mask = texture2D (uImage1, vTexCoord).a;
 				
 				if (color.a == 0.0 || mask == 0.0) {
 					
 					gl_FragColor = vec4 (0.0, 0.0, 0.0, 0.0);
-					
+				
+				} else if ( mask > 0.4 && mask < 0.6 ) {
+
+					gl_FragColor = vec4 (0.89, 0.32, 0.0, 1.0 );
+
 				} else {
 					
 					gl_FragColor = vec4 (color.rgb / color.a, mask * color.a * vAlpha);
