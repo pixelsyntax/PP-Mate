@@ -63,6 +63,8 @@ class Game extends Sprite {
 	var roomLayoutLibrary : Array<Array<Int>>;
 	var roomBackgroundsLibrary : Array<Array<Int>>;
 
+	var playerProjectiles : Array<Projectile>;
+
 	public function new(){
 
 		super();
@@ -99,7 +101,8 @@ class Game extends Sprite {
 		tickDoors();
 		tickPlayer();
 		tickInput();
-		
+		tickProjectiles();
+
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
 		screenShake = Math.min(2, Math.max( 0, screenShake - 0.05 ));
@@ -159,6 +162,7 @@ class Game extends Sprite {
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 
 		if ( getInputActivating(InputType.shoot) ){
+			playerShoot();
 			completeRoom();
 		}
 
@@ -174,6 +178,47 @@ class Game extends Sprite {
 				travelThroughDoor( 3 );
 
 		}
+
+	}
+
+	function tickProjectiles(){
+
+		var i = 0;
+		var projectile : Projectile;
+		while ( i < playerProjectiles.length ){
+			projectile = playerProjectiles[i];
+			projectile.x += projectile.vx;
+			projectile.y += projectile.vy;
+			if ( projectile.x < -32 || projectile.x > gameview.width + 32 || projectile.y < -32 || projectile.y > gameview.height + 32 )
+				projectile.isExpired = true;
+			else if ( circleCollidesWithMap( projectile.x, projectile.y, 8 ) ){
+				projectile.x += collisionVector.x;
+				projectile.y += collisionVector.y;
+				projectile.isExpired = true;
+				spawnBulletHit( projectile.x, projectile.y );
+			}
+
+			if ( projectile.isExpired ){
+				playerProjectiles.remove( projectile );
+				gameview.removeTile( projectile );
+			}
+			else 
+				++i;
+		}
+
+	}
+
+	function spawnBulletHit( x : Float, y : Float ){
+		screenShake += 0.2;
+	}
+
+	function playerShoot(){
+
+		var vx = Math.sin( playerHead.rotation * Math.PI/180 ) * 6;
+		var vy = Math.cos( playerHead.rotation * Math.PI/180 ) * -6;
+		var projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation );
+		playerProjectiles.push( projectile );
+		gameview.addTile( projectile );
 
 	}
 
@@ -343,6 +388,13 @@ class Game extends Sprite {
 
 		if ( backgroundTiles == null )
 			backgroundTiles = new Array<Tile>();
+
+		//Remove any player projectiles
+		if ( playerProjectiles == null )
+			playerProjectiles = new Array<Projectile>();
+
+		while ( playerProjectiles.length > 0 )
+			gameview.removeTile( playerProjectiles.pop() );
 
 		while ( backgroundTiles.length > 0 )
 			gameview.removeTile( backgroundTiles.pop() );
