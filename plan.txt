@@ -88,7 +88,7 @@ Milestones
 *	10	Player attack
 		Basic attack
 *	11	Circle enemy
-	12	Enter room, spawn enemies
+*	12	Enter room, spawn enemies
 		Enemies show spawn warning before appearing
 		Enemies do not spawn too close to doorway
 	13	Door locks
