@@ -105,6 +105,8 @@ class Game extends Sprite {
 	var exit : Exit;
 	var exitFrames : Int;
 
+	var effects : Array<Effect>;
+
 	var sounds : Map<Game.SoundType, Array<Sound>>;
 	var soundTriggeredThisFrame : Bool;
 
@@ -167,6 +169,8 @@ class Game extends Sprite {
 
 		if ( gameover ){
 			++lostFrames;
+			powerBarGreen.scaleX = 0;
+			powerBarWhite.scaleX = 0;
 			player.visible = false;
 			for ( clockTile in clockDigits )
 				clockTile.visible = alternate;
@@ -191,8 +195,12 @@ class Game extends Sprite {
 		tickGUI();
 		tickPickups();
 		tickExit();
+		tickEffects();
+
+		//Update rolly shader
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
+		//Screeeeenshaaake
 		screenShake = Math.min(2, Math.max( 0, screenShake - 0.05 ));
 		shakeOffset.x = 5 * Math.random() * screenShake - screenShake/2;
 		shakeOffset.y = 5 * Math.random() * screenShake - screenShake/2;
@@ -205,6 +213,8 @@ class Game extends Sprite {
 				completeRoom();
 		}
 
+		//Only allow one sound to be triggered per frame to avoid super loudness but also emulate limited sound channels
+		//or so im telling myself.
 		soundTriggeredThisFrame = false;
 
 	}
@@ -213,6 +223,8 @@ class Game extends Sprite {
 
 		if ( exit == null )
 			return;
+
+		spawnEffect( Effect.EffectType.particle_portal, Math.random() * (14 * 16) + 16, 16 + (Math.random()*9) * 16 );
 
 		if ( animate ){
 			exit.tick();
@@ -358,28 +370,36 @@ class Game extends Sprite {
 						if ( Math.random() < 0.5 )
 							spawnPowerPickup( enemy.x, enemy.y );
 						playSound( explosion_small );
+						spawnEffect( Effect.EffectType.explosion_small, enemy.x, enemy.y );
 					case triangle:
 						for ( i in 0...2 )
 							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
 						playSound( explosion_medium );
+						spawnEffect( Effect.EffectType.explosion_medium, enemy.x, enemy.y );
 					case square:
 						for ( i in 0...3 )
 							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
 						playSound( explosion_medium );
+						spawnEffect( Effect.EffectType.explosion_medium, enemy.x, enemy.y );
 					case pentagon:
 						bossDefeated = true;
 						for ( i in 0...5 )
 							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);
+						spawnEffect( Effect.EffectType.explosion_large, enemy.x, enemy.y );
 					case hexagon:
 						bossDefeated = true;
 						for ( i in 0...10 )
 							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);											
 						playSound( explosion_large );
+						spawnEffect( Effect.EffectType.explosion_large, enemy.x, enemy.y );
 					case octagon:
 						bossDefeated = true;
 						for ( i in 0...24 )
 							spawnPowerPickup( enemy.x + Math.random() * 64 - 32, enemy.y + Math.random() * 64 - 32);
-				}		playSound( explosion_large );
+						playSound( explosion_large );
+						spawnEffect( Effect.EffectType.explosion_large, enemy.x, enemy.y );
+				}		
+
 				//TODO spawn death effect
 			} else
 				++i;
@@ -390,7 +410,7 @@ class Game extends Sprite {
 
 	function tickWarnings(){
 
-		var warningTime = minimapHiddenData[currentRoomIndex] == 5 ? 240 : 120;
+		var warningTime = minimapHiddenData[currentRoomIndex] == 5 ? 170 : 100;
 
 		if ( warningFrames >= warningTime ){
 			warningFrames = 0;
@@ -488,6 +508,7 @@ class Game extends Sprite {
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 		if ( getInputActive( InputType.shoot ) ){
 			playerShoot();
+			
 		}
 
 		if ( roomComplete ){
@@ -544,8 +565,12 @@ class Game extends Sprite {
 				playerProjectiles.remove( projectile );
 				gameview.removeTile( projectile );
 				playSound( explosion_small );
-			} else 
+				spawnEffect( Effect.EffectType.explosion_small, projectile.x, projectile.y );
+			} else {
 				++i;
+				spawnEffect( Effect.EffectType.explosion_tiny, projectile.x + Math.random() * 4 - 8 - projectile.vx/2,  projectile.y + Math.random() * 4 - 8 - projectile.vy/2);
+				// spawnEffect( Effect.EffectType.explosion_tiny, projectile.x + Math.random() * 4 - 8,  projectile.y + Math.random() * 4 - 8 );
+			}
 	
 		}
 
@@ -711,6 +736,41 @@ class Game extends Sprite {
 		var enemy = new Enemy( enemyType, x, y );
 		enemies.push( enemy );
 		gameview.addTile( enemy );
+
+
+		var particleCount : Int = 0;
+		var particleRadius : Float;
+		switch( enemyType ){
+			case circle:
+				spawnEffect( Effect.EffectType.explosion_small, x, y );
+				particleCount = 4;
+				particleRadius = 8;
+			case triangle:
+				spawnEffect( Effect.EffectType.explosion_medium, x, y );
+				particleCount = 8;
+				particleRadius = 24;
+			case square:
+				spawnEffect( Effect.EffectType.explosion_medium, x, y );
+				particleCount = 10;
+				particleRadius = 24;
+			case pentagon:
+				spawnEffect( Effect.EffectType.explosion_large, x, y );
+				particleCount = 20;
+				particleRadius = 48;
+			case hexagon:
+				spawnEffect( Effect.EffectType.explosion_large, x, y );
+				particleCount = 30;
+				particleRadius = 48;
+			case octagon:
+				spawnEffect( Effect.EffectType.explosion_large, x, y );
+				particleCount = 40;
+				particleRadius = 48;
+				
+		}
+
+		for ( i in 0...particleCount )
+			spawnEffect( Effect.EffectType.particle_portal, x - particleRadius/2 + particleRadius * Math.random(), y - particleRadius/2 + particleRadius * Math.random() );
+
 		return enemy;
 
 	}
@@ -997,6 +1057,13 @@ class Game extends Sprite {
 		if ( backgroundTiles == null )
 			backgroundTiles = new Array<Tile>();
 
+		//Remove any effects
+		if ( effects == null )
+			effects = new Array<Effect>();
+
+		while ( effects.length > 0 )
+			gameview.removeTile( effects.pop() );
+
 		//Remove any warnings
 		if ( warnings == null )
 			warnings = new Array<Tile>();
@@ -1104,6 +1171,9 @@ class Game extends Sprite {
 
 	function spawnPowerPickup( px : Float, py : Float ){
 
+		if ( boss != null && trueHealthLevel > 0 && truePowerLevel > 32 )
+			return;
+
 		var pickup = new Pickup( Pickup.PickupType.power, px, py );
 		var dx = px - player.x;
 		var dy = py - player.y;
@@ -1118,6 +1188,37 @@ class Game extends Sprite {
 
 		var tile = new Tile( spriteIndices.get( warning_a ), px -2, py-4 );
 		warnings.push( gameview.addTile( tile ) );
+
+	}
+
+	function spawnEffect( effectType : Effect.EffectType, x : Float, y : Float ){
+
+		var effect = new Effect( effectType, x, y );
+		effects.push( effect );
+		gameview.addTile( effect );
+
+	}
+
+	function tickEffects(){
+
+		if ( !animate )
+			return;
+
+		var i = 0;
+		var effect : Effect;
+		while ( i < effects.length ){
+
+			effect = effects[i];
+			effect.tick();
+
+			if ( effect.isExpired ){
+				gameview.removeTile( effect );
+				effects.remove( effect );
+			} else {
+				++i;
+			}
+
+		}
 
 	}
 
@@ -1209,11 +1310,11 @@ class Game extends Sprite {
 		defineSprite( 96, 208, 48, 48, explosion_large );
 		defineSprite( 144, 208, 48, 48 );
 		defineSprite( 192, 224, 32, 32, explosion_medium );
-		defineSprite( 224, 224, 48, 48 );
+		defineSprite( 224, 224, 32, 32 );
 		defineSprite( 192, 208, 16, 16, explosion_small );
-		defineSprite( 208, 208, 48, 48 );
+		defineSprite( 208, 208, 16, 16 );
 		defineSprite( 224, 208, 8, 8, explosion_tiny );
-		defineSprite( 232, 208, 48, 48 );
+		defineSprite( 232, 208, 8, 8 );
 
 		//Particles
 		defineSprite( 80, 208, 8, 8, particle_portal );
@@ -1552,7 +1653,7 @@ class Game extends Sprite {
 
 		roomsEntered = 0;
 
-		var mapLayout = mapLibrary[( mapsComplete % 3 ) * Math.floor(Math.random() * 5)];
+		var mapLayout = mapLibrary[( mapsComplete % 3 + 1) * Math.floor(Math.random() * 5)%mapLibrary.length];
 
 		bossDefeated = false;
 

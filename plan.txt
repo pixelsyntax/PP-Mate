@@ -135,3 +135,7 @@ Milestones
 *	26	Clock
 *	27	Title screen
 *	28	Lose screen
+*	29	Effects
+		Explosions
+		Bullet pops
+		Portal particles
