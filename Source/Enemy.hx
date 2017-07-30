@@ -6,6 +6,7 @@ class Enemy extends Tile {
 	
 	public var radius : Float;
 	public var health : Int;
+	public var maxHealth : Int;
 	public var isExpired : Bool;
 	public var enemyType : Enemy.EnemyType;
 	public var vx : Float;
@@ -47,6 +48,7 @@ class Enemy extends Tile {
 				baseID  = Game.singleton.spriteIndices.get(enemy_pentagon);
 				radius = 26;
 				health = 16;
+
 				Game.singleton.spawnEnemy( circle, x+32, y );
 				Game.singleton.spawnEnemy( circle, x-32, y );
 			case hexagon:
@@ -64,6 +66,7 @@ class Enemy extends Tile {
 		}
 
 		id = baseID;
+		maxHealth = health;
 		originX = Math.floor( radius );
 		originY = Math.floor( radius );
 		painFrames = 0;
@@ -72,7 +75,7 @@ class Enemy extends Tile {
 	public function receiveHit(){
 		painFrames += 4;
 		health -= 1;
-		if ( health <= 0 ){
+		if ( health <= 0 && !isExpired){
 			isExpired = true;
 			if ( enemyType == triangle || enemyType == hexagon )
 				Game.singleton.enemyShoot( this );

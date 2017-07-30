@@ -67,6 +67,7 @@ class Game extends Sprite {
 	var shakeOffset : Point;
 
 	var bossDefeated : Bool;
+	var boss : Enemy;
 	var currentRoomIndex : Int;
 	var roomData : Array<Array<Int>>;
 	var roomsComplete : Array<Bool>;
@@ -89,9 +90,13 @@ class Game extends Sprite {
 	var reloadTime : Int;
 	var truePowerLevel : Float;
 	var displayedPowerLevel : Float;
+	var trueHealthLevel : Float;
+	var displayedHealthLevel : Float;
 	var invincibleFrames : Int;
 	var powerBarGreen : Tile;
 	var powerBarWhite : Tile;
+	var healthBarGreen : Tile;
+	var healthBarWhite : Tile;
 	var gui : Tilemap;
 	var guiWeaponIcon : Tile;
 	var roomsEntered : Int;
@@ -274,7 +279,27 @@ class Game extends Sprite {
 
 		}
 
-		modifyTruePowerLevel( -1/24 );
+		if ( boss != null ){
+			trueHealthLevel = 160 * boss.health / boss.maxHealth;
+		}
+
+		if ( displayedHealthLevel > trueHealthLevel ){
+
+			displayedHealthLevel -= 1;
+			healthBarWhite.scaleX = Math.max(0,Math.round(displayedHealthLevel));
+			healthBarGreen.scaleX = Math.max(0,Math.round( trueHealthLevel ) );	
+
+		}
+
+		if ( displayedHealthLevel < trueHealthLevel ){
+			
+			displayedHealthLevel += 1;
+			healthBarWhite.scaleX = Math.max(0,Math.round( trueHealthLevel ) );
+			healthBarGreen.scaleX = Math.max(0,Math.round( displayedHealthLevel ) );
+
+		}
+		
+		 modifyTruePowerLevel( -1/32 );
 
 	}
 
@@ -312,13 +337,16 @@ class Game extends Sprite {
 							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
 						playSound( explosion_medium );
 					case pentagon:
+						bossDefeated = true;
 						for ( i in 0...5 )
 							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);
 					case hexagon:
+						bossDefeated = true;
 						for ( i in 0...10 )
 							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);											
 						playSound( explosion_large );
 					case octagon:
+						bossDefeated = true;
 						for ( i in 0...24 )
 							spawnPowerPickup( enemy.x + Math.random() * 64 - 32, enemy.y + Math.random() * 64 - 32);
 				}		playSound( explosion_large );
@@ -341,8 +369,17 @@ class Game extends Sprite {
 
 			while ( warnings.length > 0 ){
 				var warning = warnings.pop();
-				if ( minimapHiddenData[currentRoomIndex] == 5 )
-					spawnEnemy( pentagon, warning.x, warning.y );
+				if ( minimapHiddenData[currentRoomIndex] == 5 ){
+					var bossIndex = mapsComplete % 3;
+					switch( bossIndex ){
+						default:
+							boss = spawnEnemy( pentagon, warning.x, warning.y );
+						case 1:
+							boss = spawnEnemy( hexagon, warning.x, warning.y );
+						case 2:
+							boss = spawnEnemy( octagon, warning.x, warning.y );
+					}
+				}
 				else {
 					var enemyRange = roomsEntered / 5 + mapsComplete*3;
 					var enemyIndex : Int = Math.floor( Math.random() * enemyRange ) % 9;
@@ -593,6 +630,7 @@ class Game extends Sprite {
 		if ( invincibleFrames > 0 )
 			return;
 
+		playSound( SoundType.player_damage );
 		modifyTruePowerLevel(-16);
 		invincibleFrames = 30;
 
@@ -640,11 +678,12 @@ class Game extends Sprite {
 	public function spawnEnemy( enemyType : Enemy.EnemyType, x : Float, y : Float ){
 
 		if ( enemies.length > 16 )
-			return;
+			return null;
 
 		var enemy = new Enemy( enemyType, x, y );
 		enemies.push( enemy );
 		gameview.addTile( enemy );
+		return enemy;
 
 	}
 
@@ -702,6 +741,8 @@ class Game extends Sprite {
 
 		displayedPowerLevel = 0;
 		truePowerLevel = 127;
+		trueHealthLevel = 0;
+		displayedHealthLevel = 0;
 		playerWeapon = weapon_none;
 		reloadTime = 0;
 		invincibleFrames = 0;
@@ -755,12 +796,19 @@ class Game extends Sprite {
 		guiTileset.addRect( new Rectangle( 32, 96, 32, 32 ) ); //Weapon icon rapid 4
 		guiTileset.addRect( new Rectangle( 64, 96, 32, 32 ) ); //Weapon icon multi 5
 		guiTileset.addRect( new Rectangle( 96, 96, 32, 32 ) ); //Weapon icon beam 6
+		guiTileset.addRect( new Rectangle( 80, 32, 1, 16 ) ); //healthbar normal 7
+		guiTileset.addRect( new Rectangle( 81, 32, 1, 16 ) ); //healthbar white 8
+		
 		gui = new Tilemap( 192, 64, guiTileset, false );
 		addChild( gui );
 		gui.y = 176;
 		powerBarWhite = gui.addTile( new Tile( 2, 61, 29 ) );
 		powerBarGreen = gui.addTile( new Tile( 0, 61, 29 ) );
 		powerBarWhite.scaleX = 127;
+		healthBarWhite = gui.addTile( new Tile( 8, 4, 4 ) );
+		healthBarWhite.scaleX = 0;
+		healthBarGreen = gui.addTile( new Tile( 7, 4, 4 ) );
+		healthBarGreen.scaleX = 0;
 		guiWeaponIcon = new Tile( 0, 4, 29 );
 		gui.addTile( guiWeaponIcon );
 		guiWeaponIcon.visible = false;
@@ -895,7 +943,9 @@ class Game extends Sprite {
 	function setRoom( roomIndex : Int ){
 
 		var roomType = minimapHiddenData[currentRoomIndex];
-
+		if ( roomType == 5 )
+			trueHealthLevel = 160;
+		boss = null;
 		var room = roomData[roomIndex];
 		roomComplete = roomsComplete[roomIndex];
 		completeFrames = 0;
@@ -925,8 +975,7 @@ class Game extends Sprite {
 		}
 		exitFrames = 0;
 
-		if ( roomType == 9 || roomType == 10 ){
-			trace("exit!");
+		if ( bossDefeated && ( roomType == 9 || roomType == 10 ) ){
 			exit = new Exit();
 			gameview.addTile( exit );
 			completeFrames = 3000;
@@ -1603,6 +1652,8 @@ class Game extends Sprite {
 			var v = room[i];
 			if ( v == 1 ) //Pick a random tile 
 				room[i] += Math.floor( Math.random() * 8 );
+			if ( v == 9 )
+				room[i] = -1;
 		}
 
 		return room;
