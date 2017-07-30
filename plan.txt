@@ -91,7 +91,7 @@ Milestones
 *	12	Enter room, spawn enemies
 		Enemies show spawn warning before appearing
 		Enemies do not spawn too close to doorway
-	13	Door locks
+*	13	Door locks
 		Player is pushed into room on entering
 		Doors lock
 		Doors open when no enemies remain
