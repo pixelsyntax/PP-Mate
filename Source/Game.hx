@@ -23,6 +23,8 @@ class Game extends Sprite {
 	var gameview : Tilemap;
 	var tileset : Tileset;
 
+	var worldContainer : Sprite;
+
 	var roomTiles : Array<Tile>;
 	var backgroundTiles : Array<Tile>;
 	var doorTiles : Array<Tile>;
@@ -44,6 +46,17 @@ class Game extends Sprite {
 	var shader : openfl.display.Shader;
 	var scrollPos : Point;
 
+	var doorProgress : Float;
+	var roomComplete : Bool;
+	var screenShake : Float;
+	var shakeOffset : Point;
+
+	var currentRoomIndex : Int;
+	var roomData : Array<Array<Int>>;
+	var roomBackgrounds : Array<Array<Int>>;
+	var roomLayoutLibrary : Array<Array<Int>>;
+	var roomBackgroundsLibrary : Array<Array<Int>>;
+
 	public function new(){
 
 		super();
@@ -51,13 +64,19 @@ class Game extends Sprite {
 		time = 0;
 		timeStep = 1/60;
 		collisionVector = new Point(0,0);
-		setupInput();
-		setupGUI();
+		worldContainer = new Sprite();
+		addChild( worldContainer );
+		setupRoomDataLibrary();
 		setupGameview();
 		setupDoors();
-		setRoom( true, true, true, true );
+		generateMap();
+		setupInput();
+		
+		
+		setRoom( roomData[currentRoomIndex] );
 		setupPlayer();
 		setupCursor();
+		setupGUI();
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
 	}
@@ -71,11 +90,18 @@ class Game extends Sprite {
 
 		time += timeStep;
 
+		tickDoors();
 		tickPlayer();
 		tickInput();
 		
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
+		screenShake = Math.min(2, Math.max( 0, screenShake - 0.05 ));
+		shakeOffset.x = 5 * Math.random() * screenShake - screenShake/2;
+		shakeOffset.y = 5 * Math.random() * screenShake - screenShake/2;
+		worldContainer.x = shakeOffset.x;
+		worldContainer.y = shakeOffset.y;
+
 	}
 
 	function tickPlayer(){
@@ -126,6 +152,52 @@ class Game extends Sprite {
 		
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 
+		if ( getInputActivating(InputType.shoot) ){
+			roomComplete = !roomComplete;
+		}
+
+		if ( roomComplete ){
+
+			if ( player.y < 0 )
+				travelThroughDoor( 0 )
+			else if ( player.x > gameview.width )
+				travelThroughDoor( 1 );
+			else if ( player.y > gameview.height )
+				travelThroughDoor( 2 );
+			else if ( player.x < 0 )
+				travelThroughDoor( 3 );
+
+		}
+
+	}
+
+	function tickDoors(){
+
+		if ( roomComplete && doorProgress < 1 ){
+			doorProgress = Math.min( 1, doorProgress + 0.02 );
+			//TODO rumble sound
+			//TODO door rumble screenshake
+			screenShake = 0.2;
+		}
+
+		if ( !roomComplete && doorProgress > 0 ){
+			doorProgress = Math.max( 0, doorProgress - 0.05 );
+			if ( doorProgress == 0 ){
+				//TODO slam sound
+				screenShake = 1;
+			}
+		}
+
+		var offset = doorProgress * 18;
+		doorTiles[0].x = 7 * 16 - offset;
+		doorTiles[1].x = 8 * 16 -2 + offset;
+		doorTiles[2].x = 7 * 16 - offset;
+		doorTiles[3].x = 8 * 16 -2 + offset;
+		doorTiles[4].y = 5 * 16 - offset;
+		doorTiles[5].y = 6 * 16 -2 + offset;
+		doorTiles[6].y = 5 * 16 - offset;
+		doorTiles[7].y = 6 * 16 -2 + offset;
+			
 	}
 
 	function tickInput(){
@@ -188,7 +260,7 @@ class Game extends Sprite {
 		player.addChild( playerHead );
 		player.x = 128;
 		player.y = 128;
-		addChild( player );
+		worldContainer.addChild( player );
 	}
 
 	function setupCursor(){
@@ -209,6 +281,8 @@ class Game extends Sprite {
 
 	function setupDoors(){
 
+		doorProgress = 1;
+
 		if ( doorTiles == null )
 			doorTiles = new Array<Tile>();
 
@@ -227,7 +301,9 @@ class Game extends Sprite {
 	}
 
 	//Configure a room
-	function setRoom( entranceUp : Bool, entranceRight : Bool, entranceDown : Bool, entranceLeft : Bool ){
+	function setRoom( roomData : Array<Int> ){
+
+		roomComplete = false;
 
 		if ( roomTiles == null )
 			roomTiles = new Array<Tile>();
@@ -241,60 +317,13 @@ class Game extends Sprite {
 		while ( backgroundTiles.length > 0 )
 			gameview.removeTile( backgroundTiles.pop() );
 
-		//Border
-		//Top
-		for ( i in 0...7)
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) ) );
-		if ( entranceUp ){
-
-		} else { //No top door, fill in border
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 0 ) ) );
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 0 ) ) );
-		}
-		for ( i in 9...16)
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 0 ) ) );
-		//Bottom
-		for ( i in 0...7)
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) ) );
-		if ( entranceUp ){
-
-		} else { //No top door, fill in border
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 7 * 16, 10*16 ) ) );
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 8 * 16, 10*16 ) ) );
-		}
-		for ( i in 9...16)
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), i * 16, 10*16 ) ) );
-		
-		//Left
-		for ( i in 1...5 )
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) ) );
-		if ( entranceLeft ){
-
-		} else {
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 5*16 ) ) );
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 0, 6*16 ) ) );
-		}
-		for ( i in 7...10 )
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 0, i*16 ) ) );
-		
-		//Right
-		for ( i in 1...5 )
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) ) );
-		if ( entranceLeft ){
-
-		} else {
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 5*16 ) ) );
-			gameview.addTile( new Tile( spriteIndices.get( tileSetB ), 15*16, 6*16 ) );
-		}
-		for ( i in 7...10 )
-			roomTiles.push( gameview.addTile( new Tile( spriteIndices.get( tileSetA ), 15*16, i*16 ) ) );
-		
-		for ( y in 1...9 ){
-			for ( x in 1...14 ){
-				if ( Math.random() < 0.3 ){
-					var index = Math.round( Math.random() * 4 ) + 8;
-					var tile = new Tile( spriteIndices.get( tileSetA ) + index, x * 16, y * 16 );
-					backgroundTiles.push( gameview.addTile( tile ) );
+		for ( y in 0...11 ){
+			for ( x in 0...16 ){
+				var i = x + y * 16;
+				var v = roomData[i];
+				if ( v > 0 ){
+					var tile = new Tile(v-1, x * 16, y * 16);
+					roomTiles.push( gameview.addTile( tile ) );
 				}
 			}
 		}
@@ -304,6 +333,8 @@ class Game extends Sprite {
 	/* create the gameview and define all the sprites it will use */
 	function setupGameview(){
 
+		screenShake = 0;
+		shakeOffset = new Point(0,0);
 		spriteIndices = new Map<Game.SpriteType, Int>();
 		//Background tiles
 		//Set A
@@ -403,7 +434,7 @@ class Game extends Sprite {
 		defineSprite( 232, 216, 4, 4, particle_smoke_small );
 
 		gameview = new Tilemap( 256, 176, tileset, false );
-		addChild( gameview );
+		worldContainer.addChild( gameview );
 	}
 
 	function defineSprite( x : Int, y : Int, width: Int, height : Int, ?spriteType : SpriteType ){
@@ -561,6 +592,247 @@ class Game extends Sprite {
 
 	}
 
+	function travelThroughDoor( direction : Int ){
+
+		switch( direction ){
+			case 0: //up
+				currentRoomIndex -= 5;
+				player.y += gameview.height -24;
+			case 1: //right
+				currentRoomIndex += 1;
+				player.x -= gameview.width - 24;
+			case 2: //down
+				currentRoomIndex += 5;
+				player.y -= gameview.height -24 ;
+			case 3: //left
+				currentRoomIndex -= 1;
+				player.x += gameview.width -24 ;
+		}
+
+		trace('Travelling in direction $direction to room $currentRoomIndex');
+		setRoom( roomData[currentRoomIndex] );
+
+	}
+
+	function generateMap(){
+
+		var mapWidth : Int = 5;
+		var mapHeight : Int = 5;
+		currentRoomIndex = 0;
+
+		roomData = new Array<Array<Int>>();
+
+		for ( y in 0...mapHeight ){
+
+			var doorUp = y != 0;
+			var doorDown = y != mapHeight -1;
+
+			for ( x in 0...mapWidth ){
+
+				var mapIndex = x + y * mapWidth;
+				var doorRight = x != mapWidth - 1;				
+				var doorLeft = x != 0;
+				roomData.push(generateNormalRoom( doorUp, doorRight, doorDown, doorLeft ));
+
+			}
+		}		
+
+	}
+
+	function generateNormalRoom( doorUp : Bool, doorRight : Bool, doorDown : Bool, doorLeft : Bool ) : Array<Int> {
+
+		if ( roomLayoutLibrary == null )
+			setupRoomDataLibrary();
+
+
+		var index : Int = 0;
+		//Normal room 0-5
+		index = Math.floor( Math.random() * 5 );
+
+		if ( !doorUp && doorRight && doorDown && doorLeft )
+			index = 5;
+		if ( doorUp && !doorRight && doorDown && doorLeft )
+			index = 6;
+		if ( doorUp && doorRight && !doorDown && doorLeft )
+			index = 7;
+		if ( doorUp && doorRight && doorDown && !doorLeft )
+			index = 8;
+		var room = roomLayoutLibrary[index].copy();
+		if ( !doorUp ){
+			room[7] = 1;
+			room[8] = 1;
+		}
+		if ( !doorRight ){
+			room[15 + 5*16] = 1;
+			room[15 + 6*16] = 1;
+		}
+		if ( !doorDown ){
+			room[7+10*16] = 1;
+			room[8+10*16] = 1;
+		}
+		if ( !doorLeft ){
+			room[5*16] = 1;
+			room[6*16] = 1;
+		}
+		trace('room index $index');
+		for ( i in 0...room.length ){
+			var v = room[i];
+			if ( v == 1 ) //Pick a random tile 
+				room[i] += Math.floor( Math.random() * 8 );
+		}
+
+		return room;
+	}
+
+	function setupRoomDataLibrary(){
+
+		roomLayoutLibrary = new Array<Array<Int>>();
+		//0 Basic room
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+		
+		//1, 2, 3, 4 Centre Obstacle rooms
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);		
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
+			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
+			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
+			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+			 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+
+		// 5 Blocked top
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+
+		// 6 Blocked right
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+		// 7 Blocked down
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+			]);	
+		// 8 Blocked left
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+
+		roomBackgroundsLibrary = new Array<Array<Int>>();
+		roomBackgroundsLibrary.push([
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 4, 3, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+		]);
+
+	}
+
+
+
 	private function applyMask (bitmap:Bitmap, mask:openfl.display.DisplayObject):Void {
 		
 		#if flash
@@ -671,5 +943,15 @@ enum InputType {
 	up;
 	down;
 	shoot;
+
+}
+
+enum RoomType {
+
+	entrance;
+	normal;
+	bonus;
+	boss;
+	exit;
 
 }
