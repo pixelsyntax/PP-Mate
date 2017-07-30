@@ -23,6 +23,11 @@ class Game extends Sprite {
 	var gameview : Tilemap;
 	var tileset : Tileset;
 
+	var minimap : Tilemap;
+	var minimapData : Array<Int>;
+	var minimapHiddenData : Array<Int>;
+	var minimapDoorData : Array<Array<Bool>>;
+
 	var worldContainer : Sprite;
 
 	var roomTiles : Array<Tile>;
@@ -53,6 +58,7 @@ class Game extends Sprite {
 
 	var currentRoomIndex : Int;
 	var roomData : Array<Array<Int>>;
+	var roomsComplete : Array<Bool>;
 	var roomBackgrounds : Array<Array<Int>>;
 	var roomLayoutLibrary : Array<Array<Int>>;
 	var roomBackgroundsLibrary : Array<Array<Int>>;
@@ -70,13 +76,13 @@ class Game extends Sprite {
 		setupGameview();
 		setupDoors();
 		generateMap();
-		setupInput();
-		
-		
-		setRoom( roomData[currentRoomIndex] );
+		setupInput();		
 		setupPlayer();
 		setupCursor();
 		setupGUI();
+
+		setRoom( currentRoomIndex );
+		addNeighbouringRoomsToMinimap();
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
 	}
@@ -153,7 +159,7 @@ class Game extends Sprite {
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 
 		if ( getInputActivating(InputType.shoot) ){
-			roomComplete = !roomComplete;
+			completeRoom();
 		}
 
 		if ( roomComplete ){
@@ -209,6 +215,7 @@ class Game extends Sprite {
 		}
 
 	}
+
 
 	function getInputActivating( inputType : Game.InputType ){
 		return input.get( inputType ) == 1;
@@ -277,6 +284,21 @@ class Game extends Sprite {
 		var guiBG = new Bitmap( Assets.getBitmapData("assets/background.png") );
 		addChild( guiBG );
 
+		var minimapTileset = new Tileset( Assets.getBitmapData("assets/gui.png") );
+		minimapTileset.addRect( new Rectangle( 4, 36, 12, 12 ) ); //Current room indicator 0
+		minimapTileset.addRect( new Rectangle( 24, 32, 8, 8 ) ); //unexplored room 1
+		minimapTileset.addRect( new Rectangle( 16, 32, 8, 8 ) ); //explored room 2
+		minimapTileset.addRect( new Rectangle( 64, 32, 12, 12 ) ); //unexplored boss room 3
+		minimapTileset.addRect( new Rectangle( 24, 40, 8, 8 ) ); //unexplored exit 4
+		minimapTileset.addRect( new Rectangle( 16, 40, 12, 12 ) ); //explored exit 5
+		minimapTileset.addRect( new Rectangle( 0, 32, 4, 2 ) ); //door h 6
+		minimapTileset.addRect( new Rectangle( 0, 32, 2, 4 ) ); //door v 7
+
+		minimap = new Tilemap( 60, 60, minimapTileset, false );
+		addChild( minimap );
+		minimap.x = 194;
+		minimap.y = 178;
+
 	}
 
 	function setupDoors(){
@@ -300,10 +322,18 @@ class Game extends Sprite {
 
 	}
 
-	//Configure a room
-	function setRoom( roomData : Array<Int> ){
+	function completeRoom(){
 
-		roomComplete = false;
+		roomComplete = true;
+		roomsComplete[currentRoomIndex] = true;
+
+	}
+
+	//Configure a room
+	function setRoom( roomIndex : Int ){
+
+		var room = roomData[roomIndex];
+		roomComplete = roomsComplete[roomIndex];
 
 		if ( roomTiles == null )
 			roomTiles = new Array<Tile>();
@@ -320,13 +350,15 @@ class Game extends Sprite {
 		for ( y in 0...11 ){
 			for ( x in 0...16 ){
 				var i = x + y * 16;
-				var v = roomData[i];
+				var v = room[i];
 				if ( v > 0 ){
 					var tile = new Tile(v-1, x * 16, y * 16);
 					roomTiles.push( gameview.addTile( tile ) );
 				}
 			}
 		}
+
+		addNeighbouringRoomsToMinimap();
 
 	}
 
@@ -609,8 +641,69 @@ class Game extends Sprite {
 				player.x += gameview.width -24 ;
 		}
 
-		trace('Travelling in direction $direction to room $currentRoomIndex');
-		setRoom( roomData[currentRoomIndex] );
+		setRoom( currentRoomIndex );
+
+	}
+
+	function addNeighbouringRoomsToMinimap(){
+
+		if ( minimapData[currentRoomIndex] % 2 == 1 )
+			minimapData[currentRoomIndex] += 1;
+		var room = roomData[currentRoomIndex];
+		var doorUp = room[7] == 0;
+		var doorRight = room[15 + 5*16] == 0;
+		var doorDown = room[7 + 10*16] == 0;
+		var doorLeft = room[5*16] == 0;
+		minimapDoorData[currentRoomIndex] = [doorUp, doorRight, doorDown, doorLeft];
+		if ( doorUp && minimapData[currentRoomIndex-5] == 0 )
+			minimapData[currentRoomIndex-5] = minimapHiddenData[currentRoomIndex-5];
+		if ( doorRight && minimapData[currentRoomIndex+1] == 0 )
+			minimapData[currentRoomIndex+1] = minimapHiddenData[currentRoomIndex+1];
+		if ( doorDown && minimapData[currentRoomIndex+5] == 0 )
+			minimapData[currentRoomIndex+5] = minimapHiddenData[currentRoomIndex+5];
+		if ( doorLeft && minimapData[currentRoomIndex-1] == 0 )
+			minimapData[currentRoomIndex-1] = minimapHiddenData[currentRoomIndex-1];
+
+
+		drawMinimap();
+
+	}
+
+	function drawMinimap(){
+
+		var mapTileSize = 12;
+
+		while( minimap.numTiles > 0 )
+			minimap.removeTileAt(0);
+
+		for ( y in 0...5 ){
+			for ( x in 0...5 ){
+				var i = x + y * 5;
+				if ( minimapData[i] > 0 ){
+					var dx = x * mapTileSize + 2;
+					var dy = y * mapTileSize + 2;
+
+					var doorData = minimapDoorData[i];
+					if ( doorData[0] )
+						minimap.addTile( new Tile( 7, dx + 3, dy -4 ) );
+					if ( doorData[1] )
+						minimap.addTile( new Tile( 6, dx + mapTileSize - 4, dy +3 ) );
+					if ( doorData[2] )
+						minimap.addTile( new Tile( 7, dx + 3, dy + mapTileSize - 4) );
+					if ( doorData[3] )
+						minimap.addTile( new Tile( 6, dx - 4, dy + 3 ) );
+
+					//room
+					var tile = new Tile( minimapData[i], dx, dy );
+					minimap.addTile( tile );
+				}
+			}
+		}
+
+		var px = (currentRoomIndex % 5) * mapTileSize;
+		var py = Math.floor(currentRoomIndex / 5) * mapTileSize;
+		var tile = new Tile( 0, px, py );
+		minimap.addTile( tile );
 
 	}
 
@@ -618,9 +711,18 @@ class Game extends Sprite {
 
 		var mapWidth : Int = 5;
 		var mapHeight : Int = 5;
-		currentRoomIndex = 0;
+		currentRoomIndex = 12;
 
 		roomData = new Array<Array<Int>>();
+		roomsComplete = new Array<Bool>();
+		minimapData = new Array<Int>();
+		minimapHiddenData = new Array<Int>();
+		minimapDoorData = new Array<Array<Bool>>();
+		for ( i in 0...mapWidth*mapHeight ){
+			minimapData.push(0);
+			minimapDoorData.push( [false, false, false, false] );
+			roomsComplete.push( false );
+		}
 
 		for ( y in 0...mapHeight ){
 
@@ -633,10 +735,12 @@ class Game extends Sprite {
 				var doorRight = x != mapWidth - 1;				
 				var doorLeft = x != 0;
 				roomData.push(generateNormalRoom( doorUp, doorRight, doorDown, doorLeft ));
+				minimapHiddenData.push( 1 );
 
 			}
 		}		
 
+		minimapData[currentRoomIndex] = minimapHiddenData[currentRoomIndex];
 	}
 
 	function generateNormalRoom( doorUp : Bool, doorRight : Bool, doorDown : Bool, doorLeft : Bool ) : Array<Int> {
@@ -674,7 +778,6 @@ class Game extends Sprite {
 			room[5*16] = 1;
 			room[6*16] = 1;
 		}
-		trace('room index $index');
 		for ( i in 0...room.length ){
 			var v = room[i];
 			if ( v == 1 ) //Pick a random tile 
@@ -682,6 +785,33 @@ class Game extends Sprite {
 		}
 
 		return room;
+	}
+
+	function generateBossRoom( doorUp : Bool, doorRight : Bool, doorDown : Bool, doorLeft : Bool ){
+
+		var room = roomLayoutLibrary[0].copy();
+		if ( !doorUp ){
+			room[7] = 1;
+			room[8] = 1;
+		}
+		if ( !doorRight ){
+			room[15 + 5*16] = 1;
+			room[15 + 6*16] = 1;
+		}
+		if ( !doorDown ){
+			room[7+10*16] = 1;
+			room[8+10*16] = 1;
+		}
+		if ( !doorLeft ){
+			room[5*16] = 1;
+			room[6*16] = 1;
+		}
+		for ( i in 0...room.length ){
+			var v = room[i];
+			if ( v == 1 ) //Pick a random tile 
+				room[i] += Math.floor( Math.random() * 8 );
+		}
+
 	}
 
 	function setupRoomDataLibrary(){
