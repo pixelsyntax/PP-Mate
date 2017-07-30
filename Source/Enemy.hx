@@ -76,6 +76,24 @@ class Enemy extends Tile {
 			isExpired = true;
 			if ( enemyType == triangle || enemyType == hexagon )
 				Game.singleton.enemyShoot( this );
+			if ( enemyType == pentagon ){
+				if ( Math.random() < 0.5 )
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_basic );
+				else
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi );
+			}
+			if ( enemyType == hexagon ){
+				if ( Math.random() < 0.5 )
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi );
+				else
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_rapid );
+			}
+			if ( enemyType == octagon ){
+				if ( Math.random() < 0.5 )
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_rapid );
+				else
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi );
+			}
 		}
 	}
 

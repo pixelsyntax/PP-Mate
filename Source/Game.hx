@@ -49,8 +49,8 @@ class Game extends Sprite {
 	var testBitmap : Bitmap;
 	var testMask : Sprite;
 
-	var vx : Float = 0;
-	var vy : Float = 0;
+	public var vx : Float = 0;
+	public var vy : Float = 0;
 	var collisionVector : Point;
 
 	var shader : openfl.display.Shader;
@@ -61,12 +61,14 @@ class Game extends Sprite {
 	var screenShake : Float;
 	var shakeOffset : Point;
 
+	var bossDefeated : Bool;
 	var currentRoomIndex : Int;
 	var roomData : Array<Array<Int>>;
 	var roomsComplete : Array<Bool>;
 	var roomBackgrounds : Array<Array<Int>>;
 	var roomLayoutLibrary : Array<Array<Int>>;
 	var roomBackgroundsLibrary : Array<Array<Int>>;
+	var mapLibrary : Array<Array<Int>>;
 
 	var playerProjectiles : Array<Projectile>;
 	var enemyProjectiles : Array<Projectile>;
@@ -88,6 +90,9 @@ class Game extends Sprite {
 	var gui : Tilemap;
 	var guiWeaponIcon : Tile;
 	var roomsEntered : Int;
+	var mapsComplete : Int;
+	var exit : Exit;
+	var exitFrames : Int;
 
 	public function new(){
 
@@ -119,7 +124,7 @@ class Game extends Sprite {
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
 
-
+		mapsComplete = 0;
 	}
 
 	function tick(){
@@ -142,7 +147,7 @@ class Game extends Sprite {
 		tickWarnings();
 		tickGUI();
 		tickPickups();
-
+		tickExit();
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
 		screenShake = Math.min(2, Math.max( 0, screenShake - 0.05 ));
@@ -153,6 +158,27 @@ class Game extends Sprite {
 
 		if ( warnings.length == 0 && enemies.length == 0 && !roomComplete && playerWeapon != weapon_none )
 			completeRoom();
+
+	}
+
+	function tickExit(){
+
+		if ( exit == null )
+			return;
+
+		if ( animate ){
+			exit.tick();
+		}
+
+		if ( circleCollidesWithCircle( player.x, player.y, 12, exit.x, exit.y, 24 ) ){
+			screenShake += 0.1;
+			++exitFrames;
+			if ( exitFrames > 120 ){
+				trace("FINISH");
+			}
+		} else {
+			exitFrames = 0;
+		}
 
 	}
 
@@ -282,11 +308,14 @@ class Game extends Sprite {
 
 	function tickWarnings(){
 
-		if ( warningFrames >= 120 ){
+		var warningTime = minimapHiddenData[currentRoomIndex] == 5 ? 240 : 120;
+
+		if ( warningFrames >= warningTime ){
+			warningFrames = 0;
 
 			while ( warnings.length > 0 ){
 				var warning = warnings.pop();
-				spawnEnemy( octagon, warning.x + 8, warning.y + 16);
+				spawnEnemy( circle, warning.x + 8, warning.y + 16);
 				gameview.removeTile( warning );
 			}
 
@@ -298,7 +327,8 @@ class Game extends Sprite {
 
 		}
 
-		++warningFrames;
+		if ( warnings.length > 0 )
+			++warningFrames;
 
 	}
 
@@ -350,6 +380,7 @@ class Game extends Sprite {
 		
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 		if ( getInputActive( InputType.shoot ) ){
+			completeRoom();
 			playerShoot();
 		}
 
@@ -650,14 +681,15 @@ class Game extends Sprite {
 		addChild( guiBG );
 
 		var minimapTileset = new Tileset( Assets.getBitmapData("assets/gui.png") );
-		minimapTileset.addRect( new Rectangle( 4, 36, 12, 12 ) ); //Current room indicator 0
-		minimapTileset.addRect( new Rectangle( 24, 32, 8, 8 ) ); //unexplored room 1
-		minimapTileset.addRect( new Rectangle( 16, 32, 8, 8 ) ); //explored room 2
-		minimapTileset.addRect( new Rectangle( 64, 32, 12, 12 ) ); //unexplored boss room 3
-		minimapTileset.addRect( new Rectangle( 24, 40, 8, 8 ) ); //unexplored exit 4
-		minimapTileset.addRect( new Rectangle( 16, 40, 12, 12 ) ); //explored exit 5
-		minimapTileset.addRect( new Rectangle( 0, 32, 4, 2 ) ); //door h 6
-		minimapTileset.addRect( new Rectangle( 0, 32, 2, 4 ) ); //door v 7
+		spriteIndices.set( minimap_currentRoom, minimapTileset.addRect( new Rectangle( 4, 36, 12, 12 ) ) ); //Current room indicator 0
+		spriteIndices.set( minimap_unexploredRoom, minimapTileset.addRect( new Rectangle( 24, 32, 8, 8 ) ) ); //unexplored room 1
+		spriteIndices.set( minimap_exploredRoom, minimapTileset.addRect( new Rectangle( 16, 32, 8, 8 ) ) ); //explored room 2
+		spriteIndices.set( minimap_unexploredBoss, minimapTileset.addRect( new Rectangle( 64, 32, 12, 12 ) ) ); //unexplored boss room 3
+		spriteIndices.set( minimap_exploredBoss, minimapTileset.addRect( new Rectangle( 48, 32, 12, 12 ) ) ); //explored boss
+		spriteIndices.set( minimap_unexploredExit, minimapTileset.addRect( new Rectangle( 24, 40, 8, 8 ) ) ); //unexplored exit 5
+		spriteIndices.set( minimap_exploredExit, minimapTileset.addRect( new Rectangle( 16, 40, 8, 8 ) ) ); //explored exit 5
+		spriteIndices.set( minimap_doorH, minimapTileset.addRect( new Rectangle( 0, 32, 4, 2 ) ) ); //door h 6
+		spriteIndices.set( minimap_doorV, minimapTileset.addRect( new Rectangle( 0, 32, 2, 4 ) ) ); //door v 7
 
 		minimap = new Tilemap( 60, 60, minimapTileset, false );
 		addChild( minimap );
@@ -733,6 +765,8 @@ class Game extends Sprite {
 	//Configure a room
 	function setRoom( roomIndex : Int ){
 
+		var roomType = minimapHiddenData[currentRoomIndex];
+
 		var room = roomData[roomIndex];
 		roomComplete = roomsComplete[roomIndex];
 
@@ -753,6 +787,19 @@ class Game extends Sprite {
 			gameview.removeTile( warnings.pop() );
 
 		warningFrames = 0;
+
+		//Remove exit
+		if ( exit != null ){
+			gameview.removeTile( exit );
+			exit = null;
+		}
+		exitFrames = 0;
+
+		if ( roomType == 9 || roomType == 10 ){
+			trace("exit!");
+			exit = new Exit();
+			gameview.addTile( exit );
+		}
 
 		//Remove any enemies
 		if ( enemies == null )
@@ -786,6 +833,7 @@ class Game extends Sprite {
 		while ( backgroundTiles.length > 0 )
 			gameview.removeTile( backgroundTiles.pop() );
 
+		//Spawn tiles and warnings and optionally a weapon
 		for ( y in 0...11 ){
 			for ( x in 0...16 ){
 				var i = x + y * 16;
@@ -809,7 +857,7 @@ class Game extends Sprite {
 
 	}
 
-	function spawnWeaponPickup( weaponType : PlayerWeapon, px : Float, py : Float ){
+	public function spawnWeaponPickup( weaponType : PlayerWeapon, px : Float, py : Float ){
 
 		var pickupType = Pickup.PickupType.weapon_basic;
 		switch( weaponType ){
@@ -877,7 +925,7 @@ class Game extends Sprite {
 		defineSprite( 240, 48, 16, 18, door_v_d );
 
 		//Level exit
-		defineSprite( 0, 48, 48, 48, exit );
+		defineSprite( 0, 48, 48, 48, SpriteType.exit );
 		for ( i in 1...4 )
 			tileset.addRect( new Rectangle( i * 48, 48, 48, 48 ) );
 
@@ -1137,12 +1185,14 @@ class Game extends Sprite {
 
 	}
 
+	/* Update the minimap with nearby rooms including the current room */
 	function addNeighbouringRoomsToMinimap(){
 
 		if ( minimapData[currentRoomIndex] % 2 == 1 ){
 			minimapData[currentRoomIndex] += 1;
 			++roomsEntered;
 		}
+		//look for doors
 		var room = roomData[currentRoomIndex];
 		var doorUp = room[7] == 0;
 		var doorRight = room[15 + 5*16] == 0;
@@ -1158,7 +1208,6 @@ class Game extends Sprite {
 		if ( doorLeft && minimapData[currentRoomIndex-1] == 0 )
 			minimapData[currentRoomIndex-1] = minimapHiddenData[currentRoomIndex-1];
 
-
 		drawMinimap();
 
 	}
@@ -1167,6 +1216,7 @@ class Game extends Sprite {
 
 		var mapTileSize = 12;
 
+		//Clear minimap
 		while( minimap.numTiles > 0 )
 			minimap.removeTileAt(0);
 
@@ -1179,17 +1229,41 @@ class Game extends Sprite {
 
 					var doorData = minimapDoorData[i];
 					if ( doorData[0] )
-						minimap.addTile( new Tile( 7, dx + 3, dy -4 ) );
+						minimap.addTile( new Tile( spriteIndices.get( minimap_doorV ), dx + 3, dy -4 ) );
 					if ( doorData[1] )
-						minimap.addTile( new Tile( 6, dx + mapTileSize - 4, dy +3 ) );
+						minimap.addTile( new Tile( spriteIndices.get( minimap_doorH ), dx + mapTileSize - 4, dy +3 ) );
 					if ( doorData[2] )
-						minimap.addTile( new Tile( 7, dx + 3, dy + mapTileSize - 4) );
+						minimap.addTile( new Tile( spriteIndices.get( minimap_doorV ), dx + 3, dy + mapTileSize - 4) );
 					if ( doorData[3] )
-						minimap.addTile( new Tile( 6, dx - 4, dy + 3 ) );
+						minimap.addTile( new Tile( spriteIndices.get( minimap_doorH ), dx - 4, dy + 3 ) );
+
+					var tileIndex = 0;
+
+					switch( minimapData[i] ){
+						default: 
+						case 1:
+							tileIndex = spriteIndices.get( minimap_unexploredRoom );
+						case 2, 7, 8:
+							tileIndex = spriteIndices.get( minimap_exploredRoom );
+						case 5:
+							tileIndex = spriteIndices.get( minimap_unexploredBoss );
+							dx -= 1;
+							dy -= 2;
+						case 6:
+							tileIndex = spriteIndices.get( minimap_exploredBoss );
+							dx -= 1;
+							dy -= 2;
+						case 9:
+							tileIndex = spriteIndices.get( minimap_unexploredExit );
+						case 10:
+							tileIndex = spriteIndices.get( minimap_exploredExit );
+					}
 
 					//room
-					var tile = new Tile( minimapData[i], dx, dy );
-					minimap.addTile( tile );
+					if ( tileIndex > 0 ){
+						var tile = new Tile( tileIndex, dx, dy );
+						minimap.addTile( tile );
+					}
 				}
 			}
 		}
@@ -1205,9 +1279,12 @@ class Game extends Sprite {
 
 		var mapWidth : Int = 5;
 		var mapHeight : Int = 5;
-		currentRoomIndex = 12;
 
 		roomsEntered = 0;
+
+		var mapLayout = mapLibrary[Math.floor(Math.random() * 5)];
+
+		bossDefeated = false;
 
 		roomData = new Array<Array<Int>>();
 		roomsComplete = new Array<Bool>();
@@ -1220,22 +1297,44 @@ class Game extends Sprite {
 			roomsComplete.push( false );
 		}
 
-		for ( y in 0...mapHeight ){
+		var doorUp = false;
+		var doorRight = false;
+		var doorDown = false;
+		var doorLeft = false;
 
-			var doorUp = y != 0;
-			var doorDown = y != mapHeight -1;
+		for ( y in 0...mapHeight ){
 
 			for ( x in 0...mapWidth ){
 
 				var mapIndex = x + y * mapWidth;
-				var doorRight = x != mapWidth - 1;				
-				var doorLeft = x != 0;
-				roomData.push(generateNormalRoom( doorUp, doorRight, doorDown, doorLeft ));
-				minimapHiddenData.push( 1 );
+				var index = x + y * 5;
+				var roomType = mapLayout[index];
 
+				doorUp = index > 5 && mapLayout[index-5] != 0;
+				doorRight = index % 5 != 4 && mapLayout[index+1] != 0;
+				doorDown = index < 20 && mapLayout[index+5] != 0;
+				doorLeft = index % 5 != 0 && mapLayout[index-1] != 0;
+
+				switch( roomType ){
+					default: //blank room
+						roomData.push( roomLayoutLibrary[0] );
+					case 1: //Normal room
+						roomData.push( generateNormalRoom( doorUp, doorRight, doorDown, doorLeft ) );
+					case 5: //Boss
+						roomData.push( generateBossRoom( doorUp, doorRight, doorDown, doorLeft ) );
+					case 7: //Entrance
+						roomData.push( generateEntryRoom( doorUp, doorRight, doorDown, doorLeft ) );
+						currentRoomIndex = index;
+					case 9: //Exit
+						roomData.push( generateEntryRoom( doorUp, doorRight, doorDown, doorLeft ) );
+						
+						
+				}
+				minimapHiddenData.push( roomType );
 			}
 		}		
 
+		//Fix the first room not showing properly in minimap until moving
 		minimapData[currentRoomIndex] = minimapHiddenData[currentRoomIndex];
 	}
 
@@ -1244,10 +1343,9 @@ class Game extends Sprite {
 		if ( roomLayoutLibrary == null )
 			setupRoomDataLibrary();
 
-
 		var index : Int = 0;
 		//Normal room 0-5
-		index = Math.floor( Math.random() * 5 );
+		index = Math.floor( Math.random() * 4 ) + 1;
 
 		if ( !doorUp && doorRight && doorDown && doorLeft )
 			index = 5;
@@ -1283,9 +1381,13 @@ class Game extends Sprite {
 		return room;
 	}
 
-	function generateBossRoom( doorUp : Bool, doorRight : Bool, doorDown : Bool, doorLeft : Bool ){
+	function generateEntryRoom( doorUp: Bool, doorRight: Bool, doorDown: Bool, doorLeft: Bool ){
 
-		var room = roomLayoutLibrary[0].copy();
+		if ( roomLayoutLibrary == null )
+			setupRoomDataLibrary();
+
+		var index : Int = 9;
+		var room = roomLayoutLibrary[index].copy();
 		if ( !doorUp ){
 			room[7] = 1;
 			room[8] = 1;
@@ -1308,24 +1410,57 @@ class Game extends Sprite {
 				room[i] += Math.floor( Math.random() * 8 );
 		}
 
+		return room;
+
 	}
+
+	function generateBossRoom( doorUp : Bool, doorRight : Bool, doorDown : Bool, doorLeft : Bool ){
+
+		var room = roomLayoutLibrary[10].copy();
+		if ( !doorUp ){
+			room[7] = 1;
+			room[8] = 1;
+		}
+		if ( !doorRight ){
+			room[15 + 5*16] = 1;
+			room[15 + 6*16] = 1;
+		}
+		if ( !doorDown ){
+			room[7+10*16] = 1;
+			room[8+10*16] = 1;
+		}
+		if ( !doorLeft ){
+			room[5*16] = 1;
+			room[6*16] = 1;
+		}
+		for ( i in 0...room.length ){
+			var v = room[i];
+			if ( v == 1 ) //Pick a random tile 
+				room[i] += Math.floor( Math.random() * 8 );
+		}
+
+		return room;
+
+	}
+
+
 
 	function setupRoomDataLibrary(){
 
 		roomLayoutLibrary = new Array<Array<Int>>();
-		//0 Basic room
+		//0 Blank room
 		roomLayoutLibrary.push([ 
-			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 			]);
 		
 		//1, 2, 3, 4 Centre Obstacle rooms
@@ -1439,6 +1574,35 @@ class Game extends Sprite {
 			 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
 			]);
+		// 9 Entry
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+		// 10 Boss
+		roomLayoutLibrary.push([ 
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
+			]);
+
 
 		roomBackgroundsLibrary = new Array<Array<Int>>();
 		roomBackgroundsLibrary.push([
@@ -1455,6 +1619,43 @@ class Game extends Sprite {
 			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 		]);
 
+		mapLibrary = new Array<Array<Int>>();
+		//Level 1 0,1,2,4,5
+		mapLibrary.push([
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0,
+			1, 1, 5, 1, 7,
+			1, 0, 0, 0, 0,
+			9, 0, 0, 0, 0
+		]);
+		mapLibrary.push([
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0,
+			1, 1, 5, 1, 9,
+			1, 0, 0, 0, 0,
+			7, 0, 0, 0, 0
+		]);
+		mapLibrary.push([
+			0, 9, 0, 0, 0,
+			0, 1, 0, 0, 0,
+			0, 5, 1, 1, 0,
+			0, 0, 0, 7, 0,
+			0, 0, 0, 0, 0
+		]);		
+		mapLibrary.push([
+			0, 0, 7, 0, 0,
+			0, 1, 5, 0, 0,
+			1, 1, 0, 0, 0,
+			0, 1, 1, 0, 0,
+			0, 0, 9, 0, 0
+		]);
+		mapLibrary.push([
+			0, 1, 7, 0, 0,
+			0, 1, 0, 0, 1,
+			0, 1, 5, 1, 1,
+			0, 0, 0, 1, 0,
+			0, 0, 0, 9, 0
+		]);		
 	}
 
 
@@ -1559,6 +1760,15 @@ enum SpriteType {
 	particle_smoke_large;
 	particle_smoke_medium;
 	particle_smoke_small;
+	minimap_unexploredRoom;
+	minimap_exploredRoom;
+	minimap_unexploredExit;
+	minimap_exploredExit;
+	minimap_unexploredBoss;
+	minimap_exploredBoss;
+	minimap_currentRoom;
+	minimap_doorH;
+	minimap_doorV;
 }
 
 enum InputType {

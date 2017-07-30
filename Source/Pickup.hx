@@ -12,10 +12,15 @@ class Pickup extends Tile {
 	public var baseID : Int;
 	public var lifetime : Int;
 	public var radius : Float;
+	var baseX : Float;
+	var baseY : Float;
 
 	public function new( pickupType : PickupType, x : Float, y : Float ){
 
 		super( 0, x, y );
+
+		baseX = x;
+		baseY = y;
 
 		this.pickupType = pickupType;
 		switch ( pickupType ){
