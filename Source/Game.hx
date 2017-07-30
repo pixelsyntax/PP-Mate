@@ -425,7 +425,7 @@ class Game extends Sprite {
 
 		for ( tile in doorTiles ){
 			if ( intersectCircleTile( circleX, circleY, circleR, tile.x, tile.y ) )
-				return true;ddd
+				return true;
 		}
 
 		for ( tile in roomTiles ){
