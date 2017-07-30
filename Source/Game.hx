@@ -21,6 +21,7 @@ import openfl.media.SoundMixer;
 class Game extends Sprite {
 
 	public static var singleton;
+	public var isExpired : Bool;
 
 	var time : Float;
 	var timeStep : Float;
@@ -111,10 +112,16 @@ class Game extends Sprite {
 	var clockMinutes : Int;
 	var clockSeconds : Int;
 	var clockFrames : Int;
+	var lostFrames : Int;
+	var gameover : Bool;
 
 	public function new(){
 
 		singleton = this;
+		isExpired = false;
+
+		gameover = false;
+		lostFrames = 0;
 
 		super();
 
@@ -150,15 +157,28 @@ class Game extends Sprite {
 
 	function tick(){
 
-		updateClock();
+		cursor.x = mouseX - 8;
+		cursor.y = mouseY - 8;
 
 		openfl.ui.Mouse.hide();
 		animate = !animate;
 		if ( animate )
 			alternate = !alternate;
 
-		cursor.x = mouseX - 8;
-		cursor.y = mouseY - 8;
+		if ( gameover ){
+			++lostFrames;
+			player.visible = false;
+			for ( clockTile in clockDigits )
+				clockTile.visible = alternate;
+
+			if ( lostFrames > 90 && getInputActivating( InputType.shoot ) )
+				isExpired = true;
+
+			return;
+		}
+
+		updateClock();
+
 
 		time += timeStep;
 
@@ -269,6 +289,8 @@ class Game extends Sprite {
 
 	function modifyTruePowerLevel( delta : Float ){
 		truePowerLevel = Math.min( 127, Math.max( 0, truePowerLevel + delta ) );
+		if ( truePowerLevel <= 0 )
+			gameover = true;
 	}
 
 	function tickGUI(){
@@ -391,7 +413,6 @@ class Game extends Sprite {
 				else {
 					var enemyRange = roomsEntered / 5 + mapsComplete*3;
 					var enemyIndex : Int = Math.floor( Math.random() * enemyRange ) % 9;
-					trace( enemyRange );
 					if ( enemyIndex < 2 )
 						spawnEnemy( circle, warning.x, warning.y + 8 );
 					else if ( enemyIndex < 5 )
@@ -559,7 +580,6 @@ class Game extends Sprite {
 	}
 
 	function finishMap(){
-		trace('finishMap');
 		++mapsComplete;
 		generateMap();
 		modifyTruePowerLevel(32);

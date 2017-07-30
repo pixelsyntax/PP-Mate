@@ -133,3 +133,5 @@ Milestones
 	24 	Review
 *	25	BossHealthBar
 *	26	Clock
+*	27	Title screen
+*	28	Lose screen
