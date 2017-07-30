@@ -103,7 +103,7 @@ Milestones
 		Destroying enemies spawns power pickups
 		Power pickups approach player
 		Power pickups increase power level, shown in power bar
-	16	Additional player weapons
+*	16	Additional player weapons
 		Player weapon pickups
 	17	Additional enemies
 	18	Playable level with increasing difficulty
