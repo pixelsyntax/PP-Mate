@@ -95,7 +95,7 @@ Milestones
 		Player is pushed into room on entering
 		Doors lock
 		Doors open when no enemies remain
-	14	Power decrease
+*	14	Power decrease
 		Power continuously decreases
 		Power decreases on hit
 		Power bar GUI shows received damage

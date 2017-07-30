@@ -74,6 +74,13 @@ class Game extends Sprite {
 	var animate : Bool;
 	var alternate : Bool;
 
+	var truePowerLevel : Float;
+	var displayedPowerLevel : Float;
+	var invincibleFrames : Int;
+	var powerBarGreen : Tile;
+	var powerBarWhite : Tile;
+	var gui : Tilemap;
+
 	public function new(){
 
 		singleton = this;
@@ -123,6 +130,7 @@ class Game extends Sprite {
 		tickEnemies();
 		tickProjectiles();
 		tickWarnings();
+		tickGUI();
 
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
@@ -137,6 +145,26 @@ class Game extends Sprite {
 
 	}
 
+	function tickGUI(){
+
+		if ( displayedPowerLevel > truePowerLevel ){
+			displayedPowerLevel -= 1;
+			powerBarWhite.scaleX = Math.max(0,Math.round(displayedPowerLevel));
+			powerBarGreen.scaleX = Math.max(0,Math.round( truePowerLevel ) );
+		}
+
+		if ( displayedPowerLevel < truePowerLevel ){
+
+			displayedPowerLevel += 1;
+			powerBarWhite.scaleX = Math.max(0,Math.round( truePowerLevel ) );
+			powerBarGreen.scaleX = Math.max(0,Math.round( displayedPowerLevel ) );
+
+		}
+
+		truePowerLevel -= 1/24;
+
+	}
+
 	function tickEnemies(){
 
 		var i = 0;
@@ -145,6 +173,8 @@ class Game extends Sprite {
 
 			enemy = enemies[i];
 			enemy.tick();
+			if ( circleCollidesWithCircle( enemy.x, enemy.y, enemy.radius, player.x, player.y, 12 ) )
+				playerHit();
 			if ( circleCollidesWithMap( enemy.x + enemy.vx, enemy.y, enemy.radius ) )
 				enemy.vx *= -0.5;
 			if ( circleCollidesWithMap( enemy.x, enemy.y + enemy.vy, enemy.radius ) )
@@ -251,6 +281,9 @@ class Game extends Sprite {
 
 		}
 
+		if ( invincibleFrames > 0 )
+			--invincibleFrames;
+
 	}
 
 	function tickProjectiles(){
@@ -299,6 +332,16 @@ class Game extends Sprite {
 		var projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation );
 		playerProjectiles.push( projectile );
 		gameview.addTile( projectile );
+
+	}
+
+	function playerHit(){
+
+		if ( invincibleFrames > 0 )
+			return;
+
+		truePowerLevel -= 16;
+		invincibleFrames = 60;
 
 	}
 
@@ -400,6 +443,11 @@ class Game extends Sprite {
 		player.x = 128;
 		player.y = 128;
 		worldContainer.addChild( player );
+
+		displayedPowerLevel = 0;
+		truePowerLevel = 127;
+
+		invincibleFrames = 0;
 	}
 
 	function setupCursor(){
@@ -431,6 +479,16 @@ class Game extends Sprite {
 		minimap.x = 194;
 		minimap.y = 178;
 
+		var guiTileset = new Tileset( Assets.getBitmapData("assets/gui.png") );
+		guiTileset.addRect( new Rectangle( 82, 32, 1, 6 ) ); //powerbar normal 0
+		guiTileset.addRect( new Rectangle( 83, 32, 1, 6 ) ); //powerbar danger 1
+		guiTileset.addRect( new Rectangle( 84, 32, 1, 6 ) ); //powerbar white 2
+		gui = new Tilemap( 192, 64, guiTileset, false );
+		addChild( gui );
+		gui.y = 176;
+		powerBarWhite = gui.addTile( new Tile( 2, 61, 29 ) );
+		powerBarGreen = gui.addTile( new Tile( 0, 61, 29 ) );
+		powerBarWhite.scaleX = 127;
 	}
 
 	function setupDoors(){
