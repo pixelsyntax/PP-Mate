@@ -99,7 +99,7 @@ Milestones
 		Power continuously decreases
 		Power decreases on hit
 		Power bar GUI shows received damage
-	15	Power increase
+*	15	Power increase
 		Destroying enemies spawns power pickups
 		Power pickups approach player
 		Power pickups increase power level, shown in power bar

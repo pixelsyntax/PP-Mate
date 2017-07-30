@@ -74,6 +74,8 @@ class Game extends Sprite {
 	var animate : Bool;
 	var alternate : Bool;
 
+	var pickups : Array<Pickup>;
+
 	var truePowerLevel : Float;
 	var displayedPowerLevel : Float;
 	var invincibleFrames : Int;
@@ -131,6 +133,7 @@ class Game extends Sprite {
 		tickProjectiles();
 		tickWarnings();
 		tickGUI();
+		tickPickups();
 
 		shader.data.uScrollPos.value = [scrollPos.x, scrollPos.y];
 		
@@ -143,6 +146,49 @@ class Game extends Sprite {
 		if ( warnings.length == 0 && enemies.length == 0 && !roomComplete )
 			completeRoom();
 
+	}
+
+	function tickPickups(){
+
+		var i = 0;
+		var pickup : Pickup;
+		var powerTileID : Int = spriteIndices.get( alternate ? pickup_power_a : pickup_power_b );
+		while ( i < pickups.length ){
+
+			pickup = pickups[i];
+			pickup.lifetime -= 1;
+			pickup.tick();
+
+			if ( circleCollidesWithMap( pickup.x + pickup.vx, pickup.y, pickup.radius ) )
+				pickup.vx = 0;
+			if ( circleCollidesWithMap( pickup.x, pickup.y + pickup.vy, pickup.radius ) )
+				pickup.vy = 0;
+			pickup.x += pickup.vx;
+			pickup.y += pickup.vy;
+
+			if ( pickup.visible && pickup.pickupType == power )
+				pickup.id = powerTileID;
+
+			if ( circleCollidesWithCircle( pickup.x, pickup.y, pickup.radius, player.x, player.y, 12 ) ){
+				pickups.remove( pickup );
+				gameview.removeTile( pickup );
+				modifyTruePowerLevel( 16 );
+			} else if ( pickup.lifetime <= 0 ) {
+				pickups.remove( pickup );
+				gameview.removeTile( pickup );
+			} else {
+				if ( pickup.lifetime < 60 && pickup.lifetime > 0 )
+					pickup.visible = alternate;
+			
+				++i;
+			}
+
+		}
+
+	}
+
+	function modifyTruePowerLevel( delta : Float ){
+		truePowerLevel = Math.min( 127, Math.max( 0, truePowerLevel + delta ) );
 	}
 
 	function tickGUI(){
@@ -161,7 +207,7 @@ class Game extends Sprite {
 
 		}
 
-		truePowerLevel -= 1/24;
+		modifyTruePowerLevel( -1/24 );
 
 	}
 
@@ -185,7 +231,10 @@ class Game extends Sprite {
 			if ( enemy.isExpired ){
 				enemies.remove( enemy );
 				gameview.removeTile( enemy );
-
+				switch( enemy.enemyType ){
+					default:
+						spawnPowerPickup( enemy.x, enemy.y );
+				}
 				//TODO spawn death effect
 			} else
 				++i;
@@ -340,7 +389,7 @@ class Game extends Sprite {
 		if ( invincibleFrames > 0 )
 			return;
 
-		truePowerLevel -= 16;
+		modifyTruePowerLevel(-16);
 		invincibleFrames = 60;
 
 	}
@@ -551,6 +600,13 @@ class Game extends Sprite {
 			gameview.removeTile( enemies.pop() );
 		}
 
+		//Remove any pickups
+		if ( pickups == null )
+			pickups = new Array<Pickup>();
+
+		while ( pickups.length > 0 )
+			gameview.removeTile( pickups.pop() );
+
 		//Remove any player projectiles
 		if ( playerProjectiles == null )
 			playerProjectiles = new Array<Projectile>();
@@ -577,6 +633,18 @@ class Game extends Sprite {
 		}
 
 		addNeighbouringRoomsToMinimap();
+
+	}
+
+	function spawnPowerPickup( px : Float, py : Float ){
+
+		var pickup = new Pickup( Pickup.PickupType.power, px, py );
+		var dx = px - player.x;
+		var dy = py - player.y;
+		pickup.vx = dx/30;
+		pickup.vy = dy/30;
+		gameview.addTile( pickup );
+		pickups.push( pickup );
 
 	}
 
@@ -647,7 +715,7 @@ class Game extends Sprite {
 
 		//Pickups
 		defineSprite( 0, 176, 16, 16, pickup_power_a );
-		defineSprite( 16, 176, 32, 32, pickup_power_b );
+		defineSprite( 16, 176, 16, 16, pickup_power_b );
 		defineSprite( 48, 176, 32, 32, pickup_weapon_a );
 		defineSprite( 80, 176, 32, 32, pickup_weapon_b );
 		defineSprite( 112, 176, 32, 32, pickup_weapon_c );
