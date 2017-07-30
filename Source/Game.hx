@@ -40,6 +40,9 @@ class Game extends Sprite {
 	var playerTexture : Bitmap;
 	var playerHead : Sprite;
 	var playerMask : Bitmap;
+	var playerPainBody : Bitmap;
+	var playerPainHead : Bitmap;
+	var playerWeapon : Game.PlayerWeapon;
 	var input : Map<InputType, Int>;
 	var cursor : Bitmap;
 
@@ -75,13 +78,15 @@ class Game extends Sprite {
 	var alternate : Bool;
 
 	var pickups : Array<Pickup>;
-
+	var reloadTime : Int;
 	var truePowerLevel : Float;
 	var displayedPowerLevel : Float;
 	var invincibleFrames : Int;
 	var powerBarGreen : Tile;
 	var powerBarWhite : Tile;
 	var gui : Tilemap;
+	var guiWeaponIcon : Tile;
+	var roomsEntered : Int;
 
 	public function new(){
 
@@ -105,6 +110,8 @@ class Game extends Sprite {
 		setupPlayer();
 		setupCursor();
 		setupGUI();
+
+		setWeapon( weapon_none );
 
 		setRoom( currentRoomIndex );
 		addNeighbouringRoomsToMinimap();
@@ -143,7 +150,7 @@ class Game extends Sprite {
 		worldContainer.x = shakeOffset.x;
 		worldContainer.y = shakeOffset.y;
 
-		if ( warnings.length == 0 && enemies.length == 0 && !roomComplete )
+		if ( warnings.length == 0 && enemies.length == 0 && !roomComplete && playerWeapon != weapon_none )
 			completeRoom();
 
 	}
@@ -169,10 +176,23 @@ class Game extends Sprite {
 			if ( pickup.visible && pickup.pickupType == power )
 				pickup.id = powerTileID;
 
+			//P p p pickup a pickup
 			if ( circleCollidesWithCircle( pickup.x, pickup.y, pickup.radius, player.x, player.y, 12 ) ){
 				pickups.remove( pickup );
 				gameview.removeTile( pickup );
-				modifyTruePowerLevel( 16 );
+				switch( pickup.pickupType ){
+					default: 
+						modifyTruePowerLevel( 8 );
+					case Pickup.PickupType.weapon_basic:
+						setWeapon( PlayerWeapon.weapon_basic );
+					case Pickup.PickupType.weapon_rapid:
+						setWeapon( PlayerWeapon.weapon_rapid );
+					case Pickup.PickupType.weapon_multi:
+						setWeapon( PlayerWeapon.weapon_multi );
+					case Pickup.PickupType.weapon_beam:
+						setWeapon( PlayerWeapon.weapon_beam );
+				}
+				
 			} else if ( pickup.lifetime <= 0 ) {
 				pickups.remove( pickup );
 				gameview.removeTile( pickup );
@@ -312,8 +332,7 @@ class Game extends Sprite {
 			scrollPos.y -= 0.5;
 		
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
-
-		if ( getInputActivating(InputType.shoot) ){
+		if ( getInputActive( InputType.shoot ) ){
 			playerShoot();
 		}
 
@@ -330,8 +349,14 @@ class Game extends Sprite {
 
 		}
 
+		playerPainHead.visible = invincibleFrames > 15 || invincibleFrames > 0 && alternate;
+		playerPainBody.visible = invincibleFrames > 15 || invincibleFrames > 0 && alternate;
+
 		if ( invincibleFrames > 0 )
 			--invincibleFrames;
+
+		if ( reloadTime > 0 )
+			--reloadTime;
 
 	}
 
@@ -378,10 +403,46 @@ class Game extends Sprite {
 
 		var vx = Math.sin( playerHead.rotation * Math.PI/180 ) * 6;
 		var vy = Math.cos( playerHead.rotation * Math.PI/180 ) * -6;
-		var projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation );
-		playerProjectiles.push( projectile );
-		gameview.addTile( projectile );
 
+		if ( reloadTime > 0 )
+			return;
+
+		var projectile = null;
+
+		switch( playerWeapon ){
+			case weapon_none:
+				return;
+			case weapon_basic:
+				reloadTime = 30;
+				projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation );
+				playerProjectiles.push( projectile );
+				gameview.addTile( projectile );
+			case weapon_rapid:
+				reloadTime = 6;
+				projectile = new Projectile( spriteIndices.get(bullet_player_a), player.x + vx + ( Math.random() * vy - vy/2), player.y + vy + (Math.random() * vx - vx/2), vx, vy, playerHead.rotation );
+				playerProjectiles.push( projectile );
+				gameview.addTile( projectile );
+			case weapon_multi:
+				reloadTime = 30;
+				projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation );
+				playerProjectiles.push( projectile );
+				gameview.addTile( projectile );
+				vx = Math.sin( (playerHead.rotation + 30)* Math.PI/180 ) * 6;
+				vy = Math.cos( (playerHead.rotation +30)* Math.PI/180 ) * -6;
+				projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation + 30 );
+				playerProjectiles.push( projectile );
+				gameview.addTile( projectile );
+				vx = Math.sin( (playerHead.rotation - 30)* Math.PI/180 ) * 6;
+				vy = Math.cos( (playerHead.rotation - 30)* Math.PI/180 ) * -6;
+				projectile = new Projectile( spriteIndices.get(bullet_player_b), player.x, player.y, vx, vy, playerHead.rotation - 30 );
+				playerProjectiles.push( projectile );
+				gameview.addTile( projectile );
+			case weapon_beam:
+				return;
+		}
+
+		
+		
 	}
 
 	function playerHit(){
@@ -390,7 +451,7 @@ class Game extends Sprite {
 			return;
 
 		modifyTruePowerLevel(-16);
-		invincibleFrames = 60;
+		invincibleFrames = 30;
 
 	}
 
@@ -495,8 +556,19 @@ class Game extends Sprite {
 
 		displayedPowerLevel = 0;
 		truePowerLevel = 127;
-
+		playerWeapon = weapon_none;
+		reloadTime = 0;
 		invincibleFrames = 0;
+
+		playerPainBody = new Bitmap( Assets.getBitmapData( "assets/playerPainBody.png" ) );
+		playerPainBody.x = -12;
+		playerPainBody.y = -12;
+		playerPainHead = new Bitmap( Assets.getBitmapData( "assets/playerPainHead.png" ) );
+		playerPainHead.x = headBMP.x;
+		playerPainHead.y = headBMP.y;
+		player.addChild( playerPainBody );
+		playerHead.addChild( playerPainHead );
+
 	}
 
 	function setupCursor(){
@@ -532,12 +604,19 @@ class Game extends Sprite {
 		guiTileset.addRect( new Rectangle( 82, 32, 1, 6 ) ); //powerbar normal 0
 		guiTileset.addRect( new Rectangle( 83, 32, 1, 6 ) ); //powerbar danger 1
 		guiTileset.addRect( new Rectangle( 84, 32, 1, 6 ) ); //powerbar white 2
+		guiTileset.addRect( new Rectangle( 0, 96, 32, 32 ) ); //Weapon icon basic 3
+		guiTileset.addRect( new Rectangle( 32, 96, 32, 32 ) ); //Weapon icon rapid 4
+		guiTileset.addRect( new Rectangle( 64, 96, 32, 32 ) ); //Weapon icon multi 5
+		guiTileset.addRect( new Rectangle( 96, 96, 32, 32 ) ); //Weapon icon beam 6
 		gui = new Tilemap( 192, 64, guiTileset, false );
 		addChild( gui );
 		gui.y = 176;
 		powerBarWhite = gui.addTile( new Tile( 2, 61, 29 ) );
 		powerBarGreen = gui.addTile( new Tile( 0, 61, 29 ) );
 		powerBarWhite.scaleX = 127;
+		guiWeaponIcon = new Tile( 0, 4, 29 );
+		gui.addTile( guiWeaponIcon );
+		guiWeaponIcon.visible = false;
 	}
 
 	function setupDoors(){
@@ -558,6 +637,25 @@ class Game extends Sprite {
 		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_d ), 0, 6*16-2 ) ) );
 		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_u ), 15 * 16, 5*16 ) ) );
 		doorTiles.push( gameview.addTile( new Tile( spriteIndices.get( door_v_d ), 15 * 16, 6*16-2 ) ) );
+
+	}
+
+	public function setWeapon( weapon : Game.PlayerWeapon ){
+
+		guiWeaponIcon.visible = true;
+		playerWeapon = weapon;
+		switch( playerWeapon ){
+			case weapon_none:
+				guiWeaponIcon.visible = false;
+			case weapon_basic:
+				guiWeaponIcon.id = 3;
+			case weapon_rapid:
+				guiWeaponIcon.id = 4;
+			case weapon_multi:
+				guiWeaponIcon.id = 5;
+			case weapon_beam:
+				guiWeaponIcon.id = 6;
+		}
 
 	}
 
@@ -621,18 +719,40 @@ class Game extends Sprite {
 			for ( x in 0...16 ){
 				var i = x + y * 16;
 				var v = room[i];
-				trace( v );
 				if ( v > 0 && v < 9 ){
 					var tile = new Tile(v-1, x * 16, y * 16);
 					roomTiles.push( gameview.addTile( tile ) );
 				} 
-				if ( v == 9 && !roomComplete ){
+				if ( v == 9 && !roomComplete && roomsEntered > 0 ){
 					spawnWarning( x * 16 - 8, y * 16 - 8 );
+				}
+				if ( roomsEntered == 0 ){
+
+					spawnWeaponPickup( weapon_rapid, 128, 48 );
+
 				}
 			}
 		}
 
 		addNeighbouringRoomsToMinimap();
+
+	}
+
+	function spawnWeaponPickup( weaponType : PlayerWeapon, px : Float, py : Float ){
+
+		var pickupType = Pickup.PickupType.weapon_basic;
+		switch( weaponType ){
+			default:
+			case PlayerWeapon.weapon_multi:
+				pickupType = Pickup.PickupType.weapon_multi;
+			case PlayerWeapon.weapon_rapid:
+				pickupType = Pickup.PickupType.weapon_rapid;
+			case PlayerWeapon.weapon_beam:
+				pickupType = Pickup.PickupType.weapon_beam;
+		}
+		var pickup = new Pickup( pickupType, px, py );
+		pickups.push( pickup );
+		gameview.addTile( pickup );
 
 	}
 
@@ -948,8 +1068,10 @@ class Game extends Sprite {
 
 	function addNeighbouringRoomsToMinimap(){
 
-		if ( minimapData[currentRoomIndex] % 2 == 1 )
+		if ( minimapData[currentRoomIndex] % 2 == 1 ){
 			minimapData[currentRoomIndex] += 1;
+			++roomsEntered;
+		}
 		var room = roomData[currentRoomIndex];
 		var doorUp = room[7] == 0;
 		var doorRight = room[15 + 5*16] == 0;
@@ -1013,6 +1135,8 @@ class Game extends Sprite {
 		var mapWidth : Int = 5;
 		var mapHeight : Int = 5;
 		currentRoomIndex = 12;
+
+		roomsEntered = 0;
 
 		roomData = new Array<Array<Int>>();
 		roomsComplete = new Array<Bool>();
@@ -1384,5 +1508,15 @@ enum RoomType {
 	bonus;
 	boss;
 	exit;
+
+}
+
+enum PlayerWeapon {
+
+	weapon_none;
+	weapon_basic;
+	weapon_multi;
+	weapon_rapid;
+	weapon_beam;
 
 }
