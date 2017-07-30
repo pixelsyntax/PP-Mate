@@ -24,7 +24,7 @@ class Pickup extends Tile {
 				maxSpeed = 0.5;
 				originX = 8;
 				originY = 8;
-				lifetime = 180;
+				lifetime = 180 + Math.floor( Math.random() * 60 );
 				radius = 8;
 			case weapon_basic:
 				baseID = Game.singleton.spriteIndices.get( pickup_weapon_a );

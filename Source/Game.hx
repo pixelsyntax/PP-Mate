@@ -69,7 +69,8 @@ class Game extends Sprite {
 	var roomBackgroundsLibrary : Array<Array<Int>>;
 
 	var playerProjectiles : Array<Projectile>;
-	var enemies : Array<Enemy>;
+	var enemyProjectiles : Array<Projectile>;
+	public var enemies : Array<Enemy>;
 
 	var warnings : Array<Tile>;
 	var warningFrames : Int;
@@ -253,7 +254,23 @@ class Game extends Sprite {
 				gameview.removeTile( enemy );
 				switch( enemy.enemyType ){
 					default:
-						spawnPowerPickup( enemy.x, enemy.y );
+						if ( Math.random() < 0.5 )
+							spawnPowerPickup( enemy.x, enemy.y );
+					case triangle:
+						for ( i in 0...2 )
+							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
+					case square:
+						for ( i in 0...3 )
+							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
+					case pentagon:
+						for ( i in 0...5 )
+							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);
+					case hexagon:
+						for ( i in 0...10 )
+							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);											
+					case octagon:
+						for ( i in 0...24 )
+							spawnPowerPickup( enemy.x + Math.random() * 64 - 32, enemy.y + Math.random() * 64 - 32);
 				}
 				//TODO spawn death effect
 			} else
@@ -269,7 +286,7 @@ class Game extends Sprite {
 
 			while ( warnings.length > 0 ){
 				var warning = warnings.pop();
-				spawnEnemy( circle, warning.x + 8, warning.y + 8);
+				spawnEnemy( octagon, warning.x + 8, warning.y + 16);
 				gameview.removeTile( warning );
 			}
 
@@ -393,10 +410,54 @@ class Game extends Sprite {
 	
 		}
 
+		i = 0;
+		while ( i < enemyProjectiles.length ){
+			projectile = enemyProjectiles[i];
+			projectile.x += projectile.vx;
+			projectile.y += projectile.vy;
+
+			if ( circleCollidesWithCircle( projectile.x, projectile.y, 8, player.x, player.y, 12 ) ){
+				projectile.isExpired = true;
+				playerHit();
+			}
+
+			if ( projectile.x < -32 || projectile.x > gameview.width + 32 || projectile.y < -32 || projectile.y > gameview.height + 32 )
+				projectile.isExpired = true;
+			else if ( circleCollidesWithMap( projectile.x, projectile.y, 8 ) ){
+				projectile.x += collisionVector.x;
+				projectile.y += collisionVector.y;
+				projectile.isExpired = true;
+				spawnBulletHit( projectile.x, projectile.y );
+			}
+
+			if ( projectile.isExpired ){
+				enemyProjectiles.remove( projectile );
+				gameview.removeTile( projectile );
+			} else 
+				++i;
+		}
+
 	}
 
 	function spawnBulletHit( x : Float, y : Float ){
 		screenShake += 0.2;
+	}
+
+	public function enemyShoot( enemy : Enemy ){
+
+		var dx = player.x - enemy.x;
+		var dy = player.y - enemy.y;
+		var angle = Math.atan2( dy, dx ) * 180 / Math.PI + 90;
+
+		angle += Math.random() * 20 - 10;
+
+		var vx = Math.sin( angle * Math.PI/180 ) * 4;
+		var vy = Math.cos( angle * Math.PI/180 ) * -4;
+
+		var projectile = new Projectile( spriteIndices.get(bullet_enemy_a), enemy.x, enemy.y, vx, vy, 0 );
+		enemyProjectiles.push( projectile );
+		gameview.addTile( projectile );
+
 	}
 
 	function playerShoot(){
@@ -494,7 +555,10 @@ class Game extends Sprite {
 
 	}
 
-	function spawnEnemy( enemyType : Enemy.EnemyType, ?x : Float, ?y : Float ){
+	public function spawnEnemy( enemyType : Enemy.EnemyType, x : Float, y : Float ){
+
+		if ( enemies.length > 16 )
+			return;
 
 		var enemy = new Enemy( enemyType, x, y );
 		enemies.push( enemy );
@@ -712,6 +776,13 @@ class Game extends Sprite {
 		while ( playerProjectiles.length > 0 )
 			gameview.removeTile( playerProjectiles.pop() );
 
+		//Remove any enemy projectiles
+		if ( enemyProjectiles == null )
+			enemyProjectiles = new Array<Projectile>();
+
+		while( enemyProjectiles.length > 0 )
+			gameview.removeTile( enemyProjectiles.pop() );
+
 		while ( backgroundTiles.length > 0 )
 			gameview.removeTile( backgroundTiles.pop() );
 
@@ -830,8 +901,8 @@ class Game extends Sprite {
 		defineSprite( 96, 128, 48, 48, enemy_hexagon );
 		defineSprite( 144, 128, 48, 48, enemy_hexagon_damage );
 		//Octagon
-		defineSprite( 192, 80, 64, 64, enemy_hexagon );
-		defineSprite( 192, 144, 64, 64, enemy_hexagon_damage );
+		defineSprite( 192, 80, 64, 64, enemy_octagon );
+		defineSprite( 192, 144, 64, 64, enemy_octagon_damage );
 
 		//Pickups
 		defineSprite( 0, 176, 16, 16, pickup_power_a );
@@ -1317,8 +1388,8 @@ class Game extends Sprite {
 			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
-			 1, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 1,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0,
 			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
@@ -1331,11 +1402,11 @@ class Game extends Sprite {
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
-			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
 			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
 			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
-			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 1, 1, 1,
+			 1, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
@@ -1347,8 +1418,8 @@ class Game extends Sprite {
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0,
+			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -1359,11 +1430,11 @@ class Game extends Sprite {
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
 			 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 1, 1, 1, 1, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			 1, 1, 1, 1, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 1, 1, 1, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
