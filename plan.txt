@@ -82,7 +82,7 @@ Milestones
 *	4	Single room
 *	5	Player moves in room
 *	6	Player collides with room tiles
-	7	Doors
+*	7	Doors
 	8	Multiple rooms, instant transition
 	9	Minimap
 	10	Player attack
