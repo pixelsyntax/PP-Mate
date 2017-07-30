@@ -13,6 +13,10 @@ import openfl.events.Event;
 import openfl.events.KeyboardEvent;
 import openfl.events.MouseEvent;
 import openfl.ui.Keyboard;
+import openfl.media.Sound;
+import openfl.media.SoundChannel;
+import openfl.media.SoundTransform;
+import openfl.media.SoundMixer;
 
 class Game extends Sprite {
 
@@ -58,6 +62,7 @@ class Game extends Sprite {
 
 	var doorProgress : Float;
 	var roomComplete : Bool;
+	var completeFrames : Int;
 	var screenShake : Float;
 	var shakeOffset : Point;
 
@@ -94,6 +99,9 @@ class Game extends Sprite {
 	var exit : Exit;
 	var exitFrames : Int;
 
+	var sounds : Map<Game.SoundType, Array<Sound>>;
+	var soundTriggeredThisFrame : Bool;
+
 	public function new(){
 
 		singleton = this;
@@ -102,6 +110,7 @@ class Game extends Sprite {
 
 		animate = false;
 		alternate = false;
+		soundTriggeredThisFrame = false;
 
 		time = 0;
 		mapsComplete = 0;
@@ -117,7 +126,7 @@ class Game extends Sprite {
 		setupPlayer();
 		setupCursor();
 		setupGUI();
-
+		setupSounds();
 		setWeapon( weapon_none );
 
 		setRoom( currentRoomIndex );
@@ -157,8 +166,13 @@ class Game extends Sprite {
 		worldContainer.x = shakeOffset.x;
 		worldContainer.y = shakeOffset.y;
 
-		if ( warnings.length == 0 && enemies.length == 0 && !roomComplete && playerWeapon != weapon_none )
-			completeRoom();
+		if ( warnings.length == 0 && enemies.length == 0 && !roomComplete && playerWeapon != weapon_none ){
+			++completeFrames;
+			if ( completeFrames > 30 )
+				completeRoom();
+		}
+
+		soundTriggeredThisFrame = false;
 
 	}
 
@@ -211,14 +225,19 @@ class Game extends Sprite {
 				switch( pickup.pickupType ){
 					default: 
 						modifyTruePowerLevel( Math.max( 4, 16 - mapsComplete * 4 ) );
+						playSound( pickup_power );
 					case Pickup.PickupType.weapon_basic:
 						setWeapon( PlayerWeapon.weapon_basic );
+						playSound( pickup_weapon );
 					case Pickup.PickupType.weapon_rapid:
 						setWeapon( PlayerWeapon.weapon_rapid );
+						playSound( pickup_weapon );
 					case Pickup.PickupType.weapon_multi:
 						setWeapon( PlayerWeapon.weapon_multi );
+						playSound( pickup_weapon );
 					case Pickup.PickupType.weapon_beam:
 						setWeapon( PlayerWeapon.weapon_beam );
+						playSound( pickup_weapon );
 				}
 				
 			} else if ( pickup.lifetime <= 0 ) {
@@ -283,22 +302,26 @@ class Game extends Sprite {
 					default:
 						if ( Math.random() < 0.5 )
 							spawnPowerPickup( enemy.x, enemy.y );
+						playSound( explosion_small );
 					case triangle:
 						for ( i in 0...2 )
 							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
+						playSound( explosion_medium );
 					case square:
 						for ( i in 0...3 )
 							spawnPowerPickup( enemy.x + Math.random() * 24 - 12, enemy.y + Math.random() * 24 - 12);
+						playSound( explosion_medium );
 					case pentagon:
 						for ( i in 0...5 )
 							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);
 					case hexagon:
 						for ( i in 0...10 )
 							spawnPowerPickup( enemy.x + Math.random() * 48 - 24, enemy.y + Math.random() * 48 - 24);											
+						playSound( explosion_large );
 					case octagon:
 						for ( i in 0...24 )
 							spawnPowerPickup( enemy.x + Math.random() * 64 - 32, enemy.y + Math.random() * 64 - 32);
-				}
+				}		playSound( explosion_large );
 				//TODO spawn death effect
 			} else
 				++i;
@@ -313,6 +336,8 @@ class Game extends Sprite {
 
 		if ( warningFrames >= warningTime ){
 			warningFrames = 0;
+
+			playSound( spawn );
 
 			while ( warnings.length > 0 ){
 				var warning = warnings.pop();
@@ -436,6 +461,7 @@ class Game extends Sprite {
 				if ( circleCollidesWithCircle( projectile.x, projectile.y, 8, enemy.x, enemy.y, enemy.radius + 2) ){
 					projectile.isExpired = true;
 					enemy.receiveHit();
+
 				}
 			}
 
@@ -451,6 +477,7 @@ class Game extends Sprite {
 			if ( projectile.isExpired ){
 				playerProjectiles.remove( projectile );
 				gameview.removeTile( projectile );
+				playSound( explosion_small );
 			} else 
 				++i;
 	
@@ -479,6 +506,7 @@ class Game extends Sprite {
 			if ( projectile.isExpired ){
 				enemyProjectiles.remove( projectile );
 				gameview.removeTile( projectile );
+				playSound( explosion_small );
 			} else 
 				++i;
 		}
@@ -556,7 +584,7 @@ class Game extends Sprite {
 				return;
 		}
 
-		
+		playSound( player_shot );		
 		
 	}
 
@@ -573,14 +601,14 @@ class Game extends Sprite {
 	function tickDoors(){
 
 		if ( roomComplete && doorProgress < 1 ){
-			doorProgress = Math.min( 1, doorProgress + 0.02 );
+			doorProgress = Math.min( 1, doorProgress + 0.016 );
 			//TODO rumble sound
 			//TODO door rumble screenshake
 			screenShake = 0.2;
 		}
 
 		if ( !roomComplete && doorProgress > 0 ){
-			doorProgress = Math.max( 0, doorProgress - 0.05 );
+			doorProgress = Math.max( 0, doorProgress - 0.1 );
 			if ( doorProgress == 0 ){
 				//TODO slam sound
 				screenShake = 1;
@@ -738,6 +766,83 @@ class Game extends Sprite {
 		guiWeaponIcon.visible = false;
 	}
 
+	function setupSounds(){
+
+		if ( sounds == null )
+			sounds = new Map<SoundType, Array<Sound>>();
+
+		sounds.set( SoundType.player_shot, [
+			Assets.getSound("assets/audio/pshot_0.ogg"),
+			Assets.getSound("assets/audio/pshot_1.ogg"),
+			Assets.getSound("assets/audio/pshot_2.ogg"),
+			Assets.getSound("assets/audio/pshot_3.ogg")
+		]);
+
+		sounds.set( SoundType.enemy_shot, [
+			Assets.getSound("assets/audio/eshot_0.ogg"),
+			Assets.getSound("assets/audio/eshot_1.ogg"),
+			Assets.getSound("assets/audio/eshot_2.ogg"),
+			Assets.getSound("assets/audio/eshot_3.ogg")
+		]);
+
+		sounds.set( SoundType.spawn, [
+			Assets.getSound("assets/audio/spawn_0.ogg"),
+			Assets.getSound("assets/audio/spawn_1.ogg"),
+			Assets.getSound("assets/audio/spawn_2.ogg"),
+			Assets.getSound("assets/audio/spawn_3.ogg")
+		]);
+
+		sounds.set( SoundType.explosion_small, [
+			Assets.getSound("assets/audio/explode_0.ogg" )
+		]);
+
+		sounds.set( SoundType.explosion_medium, [
+			Assets.getSound("assets/audio/explode_1.ogg" )
+		]);
+
+		sounds.set( SoundType.explosion_large, [
+			Assets.getSound("assets/audio/explode_2.ogg" ),
+			Assets.getSound("assets/audio/explode_3.ogg" )
+		]);
+
+		sounds.set( SoundType.door_slam, [
+			Assets.getSound("assets/audio/door_slam.ogg" )
+		]);
+
+		sounds.set( SoundType.door_rumble, [
+			Assets.getSound("assets/audio/door_rumble.ogg" )
+		]);
+
+		sounds.set( SoundType.pickup_weapon, [
+			Assets.getSound("assets/audio/pickup_weapon.ogg" )
+		]);
+		
+		sounds.set( SoundType.pickup_power, [
+			Assets.getSound("assets/audio/pickup_power.ogg" )
+		]);
+
+		sounds.set( SoundType.player_damage, [
+			Assets.getSound("assets/audio/pdamage_0.ogg" ),
+			Assets.getSound("assets/audio/pdamage_1.ogg" ),
+			Assets.getSound("assets/audio/pdamage_2.ogg" ),
+			Assets.getSound("assets/audio/pdamage_3.ogg" )
+		]);
+
+
+	}
+
+	function playSound( soundType : SoundType ){
+
+		if ( soundTriggeredThisFrame )
+			return;
+
+		soundTriggeredThisFrame = true;
+
+		var array = sounds.get( soundType );
+		array[Math.floor(array.length * Math.random() )].play();
+
+	}
+
 	function setupDoors(){
 
 		doorProgress = 1;
@@ -782,6 +887,7 @@ class Game extends Sprite {
 
 		roomComplete = true;
 		roomsComplete[currentRoomIndex] = true;
+		playSound( door_rumble );
 
 	}
 
@@ -792,6 +898,7 @@ class Game extends Sprite {
 
 		var room = roomData[roomIndex];
 		roomComplete = roomsComplete[roomIndex];
+		completeFrames = 0;
 
 		if ( roomTiles == null )
 			roomTiles = new Array<Tile>();
@@ -822,6 +929,7 @@ class Game extends Sprite {
 			trace("exit!");
 			exit = new Exit();
 			gameview.addTile( exit );
+			completeFrames = 3000;
 		}
 
 		//Remove any enemies
@@ -856,16 +964,19 @@ class Game extends Sprite {
 		while ( backgroundTiles.length > 0 )
 			gameview.removeTile( backgroundTiles.pop() );
 
+		var tileSetIndex = (mapsComplete + Math.random() < 0.2 ? 1 : 0 )% 3;
+						
+
 		//Spawn tiles and warnings and optionally a weapon
 		for ( y in 0...11 ){
 			for ( x in 0...16 ){
 				var i = x + y * 16;
 				var v = room[i];
-				if ( v > 0 && v < 9 ){
-					var tile = new Tile(v-1, x * 16, y * 16);
+				if ( v > 0 ){
+					var tile = new Tile(v, x * 16, y * 16);
 					roomTiles.push( gameview.addTile( tile ) );
 				} 
-				if ( v == 9 && !roomComplete && roomsEntered > 0 ){
+				if ( v == -1 && !roomComplete && roomsEntered > 0 ){
 					spawnWarning( x * 16 - 8, y * 16 - 8 );
 				}
 				
@@ -881,6 +992,8 @@ class Game extends Sprite {
 		}
 
 		addNeighbouringRoomsToMinimap();
+		if ( !roomComplete )
+			playSound( door_slam );
 
 	}
 
@@ -1342,27 +1455,55 @@ class Game extends Sprite {
 				doorDown = index < 20 && mapLayout[index+5] != 0;
 				doorLeft = index % 5 != 0 && mapLayout[index-1] != 0;
 
+				var newRoom : Array<Int>;
 				switch( roomType ){
 					default: //blank room
-						roomData.push( roomLayoutLibrary[0] );
+						newRoom = roomLayoutLibrary[0];
 					case 1: //Normal room
-						roomData.push( generateNormalRoom( doorUp, doorRight, doorDown, doorLeft ) );
+						newRoom = generateNormalRoom( doorUp, doorRight, doorDown, doorLeft );
 					case 5: //Boss
-						roomData.push( generateBossRoom( doorUp, doorRight, doorDown, doorLeft ) );
+						newRoom = generateBossRoom( doorUp, doorRight, doorDown, doorLeft );
 					case 7: //Entrance
-						roomData.push( generateEntryRoom( doorUp, doorRight, doorDown, doorLeft ) );
+						newRoom = generateEntryRoom( doorUp, doorRight, doorDown, doorLeft );
 						currentRoomIndex = index;
 					case 9: //Exit
-						roomData.push( generateEntryRoom( doorUp, doorRight, doorDown, doorLeft ) );
-						
-						
+						newRoom = generateEntryRoom( doorUp, doorRight, doorDown, doorLeft );						
 				}
+				
+				for ( i in 0...newRoom.length ){
+					var v = newRoom[i];
+					if ( v == 1 ){ //Pick a random tile 
+						newRoom[i] = getRandomTileIndex();
+					}
+				}
+
+				roomData.push( newRoom );
 				minimapHiddenData.push( roomType );
 			}
 		}		
 
 		//Fix the first room not showing properly in minimap until moving
 		minimapData[currentRoomIndex] = minimapHiddenData[currentRoomIndex];
+	}
+
+	/* Return a solid map tile index from the right palette */
+	function getRandomTileIndex () : Int{
+
+		var tileBaseIndex = (mapsComplete + (Math.random() < 0.333 ? 1 : 0 ) ) % 3;
+		var tileBase = spriteIndices.get( tileSetA );
+		switch( tileBaseIndex ){
+			default:
+			case 1:
+				tileBase = spriteIndices.get( tileSetB );
+			case 2:
+				tileBase = spriteIndices.get( tileSetC );
+		}
+		var t = tileBase + Math.floor( Math.random() * 8 ); 
+		if ( t == 0 )
+			t = 1;
+		
+		return t;
+
 	}
 
 	function generateNormalRoom( doorUp : Bool, doorRight : Bool, doorDown : Bool, doorLeft : Bool ) : Array<Int> {
@@ -1401,8 +1542,11 @@ class Game extends Sprite {
 		}
 		for ( i in 0...room.length ){
 			var v = room[i];
-			if ( v == 1 ) //Pick a random tile 
-				room[i] += Math.floor( Math.random() * 8 );
+			if ( v == 1 ) {//Pick a random tile 
+				room[i] += Math.floor( Math.random() * 8 ) + Math.random() < 0.5 ? 16 : 0;
+			}
+			if ( v == 9 )
+				room[i] = -1;
 		}
 
 		return room;
@@ -1430,11 +1574,6 @@ class Game extends Sprite {
 		if ( !doorLeft ){
 			room[5*16] = 1;
 			room[6*16] = 1;
-		}
-		for ( i in 0...room.length ){
-			var v = room[i];
-			if ( v == 1 ) //Pick a random tile 
-				room[i] += Math.floor( Math.random() * 8 );
 		}
 
 		return room;
@@ -1507,8 +1646,8 @@ class Game extends Sprite {
 		roomLayoutLibrary.push([ 
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-			 1, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1,
 			 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
 			 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
@@ -1871,5 +2010,21 @@ enum PlayerWeapon {
 	weapon_multi;
 	weapon_rapid;
 	weapon_beam;
+
+}
+
+enum SoundType {
+
+	player_shot;
+	enemy_shot;
+	spawn;
+	explosion_small;
+	explosion_medium;
+	explosion_large;
+	door_rumble;
+	door_slam;
+	pickup_weapon;
+	pickup_power;
+	player_damage;
 
 }

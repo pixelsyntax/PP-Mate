@@ -101,6 +101,7 @@ Milestones
 		Power bar GUI shows received damage
 *	15	Power increase
 		Destroying enemies spawns power pickups
+
 		Power pickups approach player
 		Power pickups increase power level, shown in power bar
 *	16	Additional player weapons
@@ -114,7 +115,7 @@ Milestones
 *	19	Level exit
 *	20	Playable level 
 *	21	Level generation
-	22	Sound effects
+*	22	Sound effects
 			Player shots
 			Enemy shots
 			Enemy spawn
