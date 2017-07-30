@@ -104,6 +104,7 @@ class Game extends Sprite {
 		alternate = false;
 
 		time = 0;
+		mapsComplete = 0;
 		timeStep = 1/60;
 		collisionVector = new Point(0,0);
 		worldContainer = new Sprite();
@@ -124,7 +125,7 @@ class Game extends Sprite {
 
 		addEventListener( Event.ADDED_TO_STAGE, onAddedToStage );
 
-		mapsComplete = 0;
+		
 	}
 
 	function tick(){
@@ -174,7 +175,7 @@ class Game extends Sprite {
 			screenShake += 0.1;
 			++exitFrames;
 			if ( exitFrames > 120 ){
-				trace("FINISH");
+				finishMap();
 			}
 		} else {
 			exitFrames = 0;
@@ -209,7 +210,7 @@ class Game extends Sprite {
 				gameview.removeTile( pickup );
 				switch( pickup.pickupType ){
 					default: 
-						modifyTruePowerLevel( 8 );
+						modifyTruePowerLevel( Math.max( 4, 16 - mapsComplete * 4 ) );
 					case Pickup.PickupType.weapon_basic:
 						setWeapon( PlayerWeapon.weapon_basic );
 					case Pickup.PickupType.weapon_rapid:
@@ -315,7 +316,22 @@ class Game extends Sprite {
 
 			while ( warnings.length > 0 ){
 				var warning = warnings.pop();
-				spawnEnemy( circle, warning.x + 8, warning.y + 16);
+				if ( minimapHiddenData[currentRoomIndex] == 5 )
+					spawnEnemy( pentagon, warning.x, warning.y );
+				else {
+					var enemyRange = roomsEntered / 5 + mapsComplete*3;
+					var enemyIndex : Int = Math.floor( Math.random() * enemyRange ) % 9;
+					trace( enemyRange );
+					if ( enemyIndex < 2 )
+						spawnEnemy( circle, warning.x, warning.y + 8 );
+					else if ( enemyIndex < 5 )
+						spawnEnemy( triangle, warning.x, warning.y + 16 );
+					else if ( enemyIndex < 9 )
+						spawnEnemy( square, warning.x, warning.y + 16 );
+					else{
+						spawnEnemy( circle, warning.x, warning.y + 8 );
+					}					
+				}
 				gameview.removeTile( warning );
 			}
 
@@ -380,7 +396,6 @@ class Game extends Sprite {
 		
 		playerHead.rotation = Math.atan2( mouseY - player.y, mouseX - player.x ) * 180 / Math.PI + 90;
 		if ( getInputActive( InputType.shoot ) ){
-			completeRoom();
 			playerShoot();
 		}
 
@@ -468,6 +483,14 @@ class Game extends Sprite {
 				++i;
 		}
 
+	}
+
+	function finishMap(){
+		trace('finishMap');
+		++mapsComplete;
+		generateMap();
+		modifyTruePowerLevel(32);
+		setRoom( currentRoomIndex );
 	}
 
 	function spawnBulletHit( x : Float, y : Float ){
@@ -624,7 +647,7 @@ class Game extends Sprite {
 	function setupPlayer(){
 
 		if ( player != null ){
-			removeChild( player );
+			worldContainer.removeChild( player );
 		}
 		scrollPos = new Point();
 
@@ -845,12 +868,16 @@ class Game extends Sprite {
 				if ( v == 9 && !roomComplete && roomsEntered > 0 ){
 					spawnWarning( x * 16 - 8, y * 16 - 8 );
 				}
-				if ( roomsEntered == 0 ){
-
-					spawnWeaponPickup( weapon_rapid, 128, 48 );
-
-				}
+				
 			}
+		}
+
+		if ( roomsEntered == 0 && mapsComplete == 0 ){
+
+			if ( Math.random() < 0.1 )
+				spawnWeaponPickup( weapon_rapid, 192, 48 );
+			else
+				spawnWeaponPickup( weapon_basic, 128, 48 );
 		}
 
 		addNeighbouringRoomsToMinimap();
@@ -1282,7 +1309,7 @@ class Game extends Sprite {
 
 		roomsEntered = 0;
 
-		var mapLayout = mapLibrary[Math.floor(Math.random() * 5)];
+		var mapLayout = mapLibrary[( mapsComplete % 3 ) * Math.floor(Math.random() * 5)];
 
 		bossDefeated = false;
 
@@ -1494,11 +1521,11 @@ class Game extends Sprite {
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
-			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1,
-			 1, 0, 0, 1, 1, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+			 1, 0, 0, 1, 1, 0, 0, 9, 0, 0, 0, 1, 1, 0, 0, 1,
+			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
-			 1, 0, 0, 1, 1, 0, 0, 0, 0, 9, 0, 1, 1, 0, 0, 1,
+			 1, 0, 0, 1, 1, 0, 0, 0, 9, 0, 0, 1, 1, 0, 0, 1,
 			 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1
@@ -1521,7 +1548,7 @@ class Game extends Sprite {
 		roomLayoutLibrary.push([ 
 			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-			 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1,
 			 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 			 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 			 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0,
@@ -1655,7 +1682,52 @@ class Game extends Sprite {
 			0, 1, 5, 1, 1,
 			0, 0, 0, 1, 0,
 			0, 0, 0, 9, 0
-		]);		
+		]);	
+		// Level 2
+		mapLibrary.push([
+			7, 1, 1, 1, 1,
+			0, 1, 0, 0, 1,
+			0, 1, 1, 1, 1,
+			0, 1, 0, 1, 0,
+			0, 5, 0, 9, 0
+		]);	
+		mapLibrary.push([
+			0, 0, 0, 0, 1,
+			9, 0, 0, 5, 1,
+			1, 1, 0, 0, 1,
+			1, 1, 1, 1, 1,
+			1, 0, 7, 0, 0
+		]);	
+		mapLibrary.push([
+			0, 0, 0, 0, 1,
+			5, 0, 0, 1, 1,
+			1, 1, 0, 0, 1,
+			1, 1, 1, 1, 1,
+			9, 0, 7, 0, 0
+		]);	
+		mapLibrary.push([
+			0, 0, 0, 0, 9,
+			1, 0, 0, 5, 1,
+			1, 0, 0, 0, 1,
+			1, 1, 1, 1, 1,
+			1, 0, 7, 0, 0
+		]);	
+		mapLibrary.push([
+			0, 0, 1, 0, 0,
+			0, 0, 1, 0, 9,
+			1, 1, 7, 1, 1,
+			0, 0, 1, 0, 0,
+			0, 5, 1, 0, 0
+		]);	
+
+
+		mapLibrary.push([
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0
+		]);	
 	}
 
 

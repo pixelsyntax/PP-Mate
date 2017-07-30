@@ -78,21 +78,21 @@ class Enemy extends Tile {
 				Game.singleton.enemyShoot( this );
 			if ( enemyType == pentagon ){
 				if ( Math.random() < 0.5 )
-					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_basic );
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_basic, x, y );
 				else
-					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi );
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi, x, y );
 			}
 			if ( enemyType == hexagon ){
 				if ( Math.random() < 0.5 )
-					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi );
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi, x, y );
 				else
-					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_rapid );
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_rapid, x, y );
 			}
 			if ( enemyType == octagon ){
 				if ( Math.random() < 0.5 )
-					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_rapid );
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_rapid, x, y );
 				else
-					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi );
+					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi, x, y );
 			}
 		}
 	}
