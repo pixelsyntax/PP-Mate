@@ -115,5 +115,18 @@ Milestones
 *	20	Playable level 
 *	21	Level generation
 	22	Sound effects
+			Player shots
+			Enemy shots
+			Enemy spawn
+			Enemy explode
+				Small
+				Medium
+				Large
+			Door slam
+			Door rumble
+			Near exit
+			Pickup weapon
+			Pickup power
+			Player damage
 	23	Music
 	24 	Review
