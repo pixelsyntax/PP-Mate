@@ -80,7 +80,7 @@ class Enemy extends Tile {
 			if ( enemyType == triangle || enemyType == hexagon )
 				Game.singleton.enemyShoot( this );
 			if ( enemyType == pentagon ){
-				if ( Math.random() < 0.5 )
+				if ( Math.random() < 0.2 )
 					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_basic, x, y );
 				else
 					Game.singleton.spawnWeaponPickup( Game.PlayerWeapon.weapon_multi, x, y );
@@ -176,7 +176,7 @@ class Enemy extends Tile {
 			case pentagon:
 				if ( reloadTime == 0 && Math.random() < 0.1 ){
 					Game.singleton.spawnEnemy( circle, x, y );
-					reloadTime = 30;
+					reloadTime = 50;
 				}
 				id = ( painFrames > 0 ) ? baseID + 1 : baseID;
 

@@ -568,7 +568,9 @@ class Game extends Sprite {
 				spawnEffect( Effect.EffectType.explosion_small, projectile.x, projectile.y );
 			} else {
 				++i;
-				spawnEffect( Effect.EffectType.explosion_tiny, projectile.x + Math.random() * 4 - 8 - projectile.vx/2,  projectile.y + Math.random() * 4 - 8 - projectile.vy/2);
+				var effect = new Effect( Effect.EffectType.explosion_tiny, projectile.x + Math.random() * 4 - 8 - projectile.vx/2,  projectile.y + Math.random() * 4 - 8 - projectile.vy/2);
+				effects.push( effect );
+				gameview.addTileAt( effect, 0 );
 				// spawnEffect( Effect.EffectType.explosion_tiny, projectile.x + Math.random() * 4 - 8,  projectile.y + Math.random() * 4 - 8 );
 			}
 	
@@ -859,22 +861,6 @@ class Game extends Sprite {
 
 		var guiBG = new Bitmap( Assets.getBitmapData("assets/background.png") );
 		addChild( guiBG );
-
-		var minimapTileset = new Tileset( Assets.getBitmapData("assets/gui.png") );
-		spriteIndices.set( minimap_currentRoom, minimapTileset.addRect( new Rectangle( 4, 36, 12, 12 ) ) ); //Current room indicator 0
-		spriteIndices.set( minimap_unexploredRoom, minimapTileset.addRect( new Rectangle( 24, 32, 8, 8 ) ) ); //unexplored room 1
-		spriteIndices.set( minimap_exploredRoom, minimapTileset.addRect( new Rectangle( 16, 32, 8, 8 ) ) ); //explored room 2
-		spriteIndices.set( minimap_unexploredBoss, minimapTileset.addRect( new Rectangle( 64, 32, 12, 12 ) ) ); //unexplored boss room 3
-		spriteIndices.set( minimap_exploredBoss, minimapTileset.addRect( new Rectangle( 48, 32, 12, 12 ) ) ); //explored boss
-		spriteIndices.set( minimap_unexploredExit, minimapTileset.addRect( new Rectangle( 24, 40, 8, 8 ) ) ); //unexplored exit 5
-		spriteIndices.set( minimap_exploredExit, minimapTileset.addRect( new Rectangle( 16, 40, 8, 8 ) ) ); //explored exit 5
-		spriteIndices.set( minimap_doorH, minimapTileset.addRect( new Rectangle( 0, 32, 4, 2 ) ) ); //door h 6
-		spriteIndices.set( minimap_doorV, minimapTileset.addRect( new Rectangle( 0, 32, 2, 4 ) ) ); //door v 7
-
-		minimap = new Tilemap( 60, 60, minimapTileset, false );
-		addChild( minimap );
-		minimap.x = 194;
-		minimap.y = 178;
 
 		var guiTileset = new Tileset( Assets.getBitmapData("assets/gui.png") );
 		guiTileset.addRect( new Rectangle( 82, 32, 1, 6 ) ); //powerbar normal 0
@@ -1452,7 +1438,10 @@ class Game extends Sprite {
 				input.set( right, 1 );
 			case Keyboard.ESCAPE:
 				input.set( quit, 1 );
+				#if html5
+				#else
 				Sys.exit(0);
+				#end
 		}
 	}
 
@@ -1586,6 +1575,24 @@ class Game extends Sprite {
 	function drawMinimap(){
 
 		var mapTileSize = 12;
+
+		if ( minimap == null ){
+			var minimapTileset = new Tileset( Assets.getBitmapData("assets/gui.png") );
+			spriteIndices.set( minimap_currentRoom, minimapTileset.addRect( new Rectangle( 4, 36, 12, 12 ) ) ); //Current room indicator 0
+			spriteIndices.set( minimap_unexploredRoom, minimapTileset.addRect( new Rectangle( 24, 32, 8, 8 ) ) ); //unexplored room 1
+			spriteIndices.set( minimap_exploredRoom, minimapTileset.addRect( new Rectangle( 16, 32, 8, 8 ) ) ); //explored room 2
+			spriteIndices.set( minimap_unexploredBoss, minimapTileset.addRect( new Rectangle( 64, 32, 12, 12 ) ) ); //unexplored boss room 3
+			spriteIndices.set( minimap_exploredBoss, minimapTileset.addRect( new Rectangle( 48, 32, 12, 12 ) ) ); //explored boss
+			spriteIndices.set( minimap_unexploredExit, minimapTileset.addRect( new Rectangle( 24, 40, 8, 8 ) ) ); //unexplored exit 5
+			spriteIndices.set( minimap_exploredExit, minimapTileset.addRect( new Rectangle( 16, 40, 8, 8 ) ) ); //explored exit 5
+			spriteIndices.set( minimap_doorH, minimapTileset.addRect( new Rectangle( 0, 32, 4, 2 ) ) ); //door h 6
+			spriteIndices.set( minimap_doorV, minimapTileset.addRect( new Rectangle( 0, 32, 2, 4 ) ) ); //door v 7
+
+			minimap = new Tilemap( 60, 60, minimapTileset, false );
+			addChild( minimap );
+			minimap.x = 194;
+			minimap.y = 178;
+		}
 
 		//Clear minimap
 		while( minimap.numTiles > 0 )

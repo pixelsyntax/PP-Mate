@@ -10,6 +10,7 @@ class Main extends Sprite {
 	var titleFrames : Int;
 	var theGame : Game;
 	var theTitle : openfl.display.Bitmap;
+	var l : Float;
 
 	public function new () {
 		
@@ -31,6 +32,11 @@ class Main extends Sprite {
 	function onEnterFrame( e : openfl.events.Event ){
 
 		++titleFrames;
+		if ( appmode == title ){
+			l = Math.random();
+			if ( l == 0 )
+				setAppMode( title );
+		}
 		if ( appmode == game && ( theGame == null || theGame.isExpired ) )
 			setAppMode( title );
 
